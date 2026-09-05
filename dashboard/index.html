@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>NID-TMS Security Dashboard</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            background: #f4f4f4;
+        }
+
+        .header {
+            background: #222;
+            color: white;
+            padding: 25px;
+            text-align: center;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+
+        .cards {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            flex: 1;
+        }
+
+        .card h3 {
+            margin-top: 0;
+        }
+
+        .number {
+            font-size: 30px;
+            font-weight: bold;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+
+        th {
+            background: #333;
+            color: white;
+        }
+
+        tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+
+        .status {
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+
+        .error {
+            color: red;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="header">
+        <h1>NID-TMS Security Dashboard</h1>
+        <p>
+            Network Intrusion Detection & Real-Time Traffic Monitoring System
+        </p>
+    </div>
+
+    <div class="container">
+
+        <div class="cards">
+
+            <div class="card">
+                <h3>Total Alerts</h3>
+                <div class="number" id="totalAlerts">0</div>
+            </div>
+
+            <div class="card">
+                <h3>High Severity</h3>
+                <div class="number" id="highAlerts">0</div>
+            </div>
+
+            <div class="card">
+                <h3>Medium Severity</h3>
+                <div class="number" id="mediumAlerts">0</div>
+            </div>
+
+            <div class="card">
+                <h3>Low Severity</h3>
+                <div class="number" id="lowAlerts">0</div>
+            </div>
+
+        </div>
+
+        <div class="card">
+
+            <h2>Security Alerts</h2>
+
+            <div id="status" class="status">
+                🟢 System Online
+            </div>
+
+            <div id="lastUpdated" class="status">
+                Last updated: -
+            </div>
+
+            <table>
+
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Timestamp</th>
+                        <th>Severity</th>
+                        <th>Alert Type</th>
+                        <th>Source IP</th>
+                        <th>Destination IP</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+
+                <tbody id="alertsTable">
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+    <script>
+
+        async function loadAlerts() {
+
+            try {
+
+                const response = await fetch("/alerts");
+
+                if (!response.ok) {
+                    throw new Error("API request failed");
+                }
+
+                const data = await response.json();
+
+                const table = document.getElementById("alertsTable");
+
+                const status = document.getElementById("status");
+
+                table.innerHTML = "";
+
+                let high = 0;
+                let medium = 0;
+                let low = 0;
+
+                data.alerts.forEach(alert => {
+
+                    if (alert[2] === "HIGH") {
+                        high++;
+                    }
+
+                    if (alert[2] === "MEDIUM") {
+                        medium++;
+                    }
+
+                    if (alert[2] === "LOW") {
+                        low++;
+                    }
+
+                    const row = document.createElement("tr");
+
+                    row.innerHTML = `
+                        <td>${alert[0]}</td>
+                        <td>${alert[1]}</td>
+                        <td>${alert[2]}</td>
+                        <td>${alert[3]}</td>
+                        <td>${alert[4] || "-"}</td>
+                        <td>${alert[5] || "-"}</td>
+                        <td>${alert[6]}</td>
+                    `;
+
+                    table.appendChild(row);
+
+                });
+
+                document.getElementById("totalAlerts").textContent =
+                    data.alerts.length;
+
+                document.getElementById("highAlerts").textContent =
+                    high;
+
+                document.getElementById("mediumAlerts").textContent =
+                    medium;
+
+                document.getElementById("lowAlerts").textContent =
+                    low;
+
+                status.textContent =
+                    "🟢 System Online | Total Alerts: " +
+                    data.alerts.length;
+
+                document.getElementById("lastUpdated").textContent =
+                    "Last updated: " +
+                    new Date().toLocaleTimeString();
+
+            }
+
+            catch (error) {
+
+                document.getElementById("status").textContent =
+                    "🔴 Unable to connect to dashboard API.";
+
+                document.getElementById("status")
+                    .classList.add("error");
+
+                console.error(error);
+
+            }
+
+        }
+
+        loadAlerts();
+
+        setInterval(loadAlerts, 5000);
+
+    </script>
+
+</body>
+</html>
