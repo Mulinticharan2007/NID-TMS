@@ -1,55 +1,105 @@
-from scapy.all import sniff, IP, TCP, UDP, ICMP
+from scapy.all import sniff
 from datetime import datetime
+from pathlib import Path
+import sys
+import time
+import msvcrt
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.append(str(PROJECT_ROOT))
+
+from analyzer.traffic_stats import process_packet, save_stats
+from analyzer.intrusion_detector import detect_suspicious, finalize_detection
+
+
+SAVE_INTERVAL = 5
+
+last_save_time = time.time()
 
 
 def show_packet(packet):
-    if IP not in packet:
-        return
+    global last_save_time
+
+    # Update traffic statistics
+    process_packet(packet)
+
+    # Run intrusion detection
+    detect_suspicious(packet)
 
     timestamp = datetime.now().strftime("%H:%M:%S")
 
-    source_ip = packet[IP].src
-    destination_ip = packet[IP].dst
-    packet_length = len(packet)
-
-    protocol = "OTHER"
-    source_port = "-"
-    destination_port = "-"
-
-    if TCP in packet:
-        protocol = "TCP"
-        source_port = packet[TCP].sport
-        destination_port = packet[TCP].dport
-
-    elif UDP in packet:
-        protocol = "UDP"
-        source_port = packet[UDP].sport
-        destination_port = packet[UDP].dport
-
-    elif ICMP in packet:
-        protocol = "ICMP"
-
     print(
-        f"{timestamp} | "
-        f"{source_ip:15} -> {destination_ip:15} | "
-        f"{protocol:5} | "
-        f"{source_port:5} -> {destination_port:5} | "
-        f"{packet_length} bytes"
+        f"[{timestamp}] "
+        f"{packet.summary()} "
+        f"| Size: {len(packet)} bytes"
     )
 
+    current_time = time.time()
 
-print("=" * 90)
-print("NID-TMS - REAL-TIME PACKET MONITOR")
-print("=" * 90)
-print("Time     | Source IP       -> Destination IP  | Proto | Ports         | Size")
-print("-" * 90)
-print("Monitoring network traffic... Press Ctrl+C to stop.")
+    if current_time - last_save_time >= SAVE_INTERVAL:
+
+        save_stats()
+
+        last_save_time = current_time
+
+        print(
+            f"[{timestamp}] "
+            f"Traffic statistics updated."
+        )
+
+
+print("=" * 80)
+print("NID-TMS - REAL-TIME NETWORK MONITOR")
+print("=" * 80)
+
+print("Starting continuous network monitoring...")
+print("Traffic statistics: every 5 seconds")
+print("Intrusion detection: enabled")
+print("Press Q to stop monitoring.")
 print()
 
+
 try:
-    sniff(prn=show_packet)
+
+    while True:
+
+        sniff(
+            prn=show_packet,
+            timeout=1
+        )
+
+        # Check keyboard input
+        if msvcrt.kbhit():
+
+            key = msvcrt.getwch()
+
+            if key.lower() == "q":
+
+                print()
+                print("Stop requested by user.")
+                break
+
 
 except KeyboardInterrupt:
-    print("\n")
-    print("Packet monitoring stopped.")
-    print("NID-TMS capture module completed.")
+
+    print()
+    print("Ctrl+C received.")
+
+
+except Exception as error:
+
+    print()
+    print("Monitoring error:", error)
+
+
+finally:
+
+    finalize_detection()
+
+    save_stats()
+
+    print()
+    print("=" * 80)
+    print("Network monitoring stopped.")
+    print("Final traffic statistics saved.")
+    print("=" * 80)

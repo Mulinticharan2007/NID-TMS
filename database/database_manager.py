@@ -5,6 +5,7 @@ DATABASE_FILE = "database/nid_tms.db"
 
 
 def create_database():
+
     connection = sqlite3.connect(DATABASE_FILE)
     cursor = connection.cursor()
 
@@ -16,17 +17,28 @@ def create_database():
             alert_type TEXT NOT NULL,
             source_ip TEXT,
             destination_ip TEXT,
-            description TEXT NOT NULL
+            description TEXT NOT NULL,
+            risk_score INTEGER DEFAULT 0,
+            correlation_key TEXT
         )
     """)
 
     connection.commit()
     connection.close()
 
-    print("Database created successfully.")
+    print("Database initialized successfully.")
 
 
-def save_alert(severity, alert_type, source_ip, destination_ip, description):
+def save_alert(
+    severity,
+    alert_type,
+    source_ip,
+    destination_ip,
+    description,
+    risk_score=0,
+    correlation_key=None
+):
+
     connection = sqlite3.connect(DATABASE_FILE)
     cursor = connection.cursor()
 
@@ -34,15 +46,26 @@ def save_alert(severity, alert_type, source_ip, destination_ip, description):
 
     cursor.execute("""
         INSERT INTO alerts
-        (timestamp, severity, alert_type, source_ip, destination_ip, description)
-        VALUES (?, ?, ?, ?, ?, ?)
+        (
+            timestamp,
+            severity,
+            alert_type,
+            source_ip,
+            destination_ip,
+            description,
+            risk_score,
+            correlation_key
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         timestamp,
         severity,
         alert_type,
         source_ip,
         destination_ip,
-        description
+        description,
+        risk_score,
+        correlation_key
     ))
 
     connection.commit()
@@ -52,12 +75,21 @@ def save_alert(severity, alert_type, source_ip, destination_ip, description):
 
 
 def get_alerts():
+
     connection = sqlite3.connect(DATABASE_FILE)
     cursor = connection.cursor()
 
     cursor.execute("""
-        SELECT id, timestamp, severity, alert_type,
-               source_ip, destination_ip, description
+        SELECT
+            id,
+            timestamp,
+            severity,
+            alert_type,
+            source_ip,
+            destination_ip,
+            description,
+            risk_score,
+            correlation_key
         FROM alerts
         ORDER BY id DESC
     """)
@@ -67,15 +99,3 @@ def get_alerts():
     connection.close()
 
     return alerts
-
-
-if __name__ == "__main__":
-    create_database()
-
-    save_alert(
-        "MEDIUM",
-        "TEST",
-        "10.78.17.163",
-        "162.159.198.2",
-        "NID-TMS database integration test."
-    )

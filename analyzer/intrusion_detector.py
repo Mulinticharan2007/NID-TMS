@@ -1,43 +1,96 @@
 from pathlib import Path
 import sys
-from collections import Counter
+from collections import Counter, defaultdict
 from datetime import datetime
 
-from scapy.all import sniff, IP, TCP, ICMP
+from scapy.all import IP, TCP, ICMP
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.append(str(PROJECT_ROOT))
+
+from config.settings import (
+    PORT_SCAN_THRESHOLD,
+    ICMP_THRESHOLD,
+    SYN_THRESHOLD
+)
 
 from alerts.alert_manager import save_alert
 from database.database_manager import save_alert as save_database_alert
 
 
-connection_attempts = Counter()
+# ============================================================
+# Detection tracking
+# ============================================================
+
+syn_attempts = Counter()
+syn_ack_responses = Counter()
+
+port_scan_tracker = defaultdict(set)
+port_scan_alerted = set()
+
 icmp_packets = Counter()
-connection_counts = Counter()
+
 alerts = []
+risk_score = 0
+correlated_alerts = {}
 
 
-def create_alert(severity, message):
+# ============================================================
+# Alert creation
+# ============================================================
 
-    timestamp = datetime.now().strftime("%H:%M:%S")
+def create_alert(
+    severity,
+    message,
+    source_ip="Unknown",
+    destination_ip="Unknown",
+    alert_type="IDS_ALERT"
+):
+    global risk_score
+
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     alert = f"[{timestamp}] [{severity}] {message}"
 
     alerts.append(alert)
 
-    print("\nALERT:", alert)
+    correlation_key = message.split(" detected")[0]
 
-    save_alert(severity, message)
+    correlated_alerts[correlation_key] = (
+        correlated_alerts.get(correlation_key, 0) + 1
+    )
 
-    save_database_alert(
+    if severity == "HIGH":
+        risk_score += 10
+    elif severity == "MEDIUM":
+        risk_score += 5
+    else:
+        risk_score += 1
+
+    print()
+    print("ALERT:", alert)
+
+    # Save to security alert log
+    save_alert(
         severity,
-        "IDS_ALERT",
-        "Unknown",
-        "Unknown",
         message
     )
 
+    # Save to SQLite database
+    save_database_alert(
+        severity,
+        alert_type,
+        source_ip,
+        destination_ip,
+        message,
+        risk_score,
+        correlation_key
+    )
+
+
+# ============================================================
+# Packet analysis
+# ============================================================
 
 def detect_suspicious(packet):
 
@@ -47,12 +100,56 @@ def detect_suspicious(packet):
     source_ip = packet[IP].src
     destination_ip = packet[IP].dst
 
+    # ========================================================
+    # TCP Detection
+    # ========================================================
+
     if TCP in packet:
 
+        source_port = packet[TCP].sport
         destination_port = packet[TCP].dport
 
-        # Count SYN packets
-        if packet[TCP].flags == "S":
+        flags = packet[TCP].flags
+
+        # ----------------------------------------------------
+        # Port Scan Detection
+        # ----------------------------------------------------
+
+        scan_target = (
+            source_ip,
+            destination_ip
+        )
+
+        port_scan_tracker[scan_target].add(
+            destination_port
+        )
+
+        unique_ports = len(
+            port_scan_tracker[scan_target]
+        )
+
+        if (
+            unique_ports >= PORT_SCAN_THRESHOLD
+            and scan_target not in port_scan_alerted
+        ):
+
+            port_scan_alerted.add(scan_target)
+
+            create_alert(
+                "HIGH",
+                f"Possible Port Scan detected: "
+                f"{source_ip} -> {destination_ip} "
+                f"({unique_ports} unique destination ports)",
+                source_ip,
+                destination_ip,
+                "Port Scan"
+            )
+
+        # ----------------------------------------------------
+        # SYN Detection
+        # ----------------------------------------------------
+
+        if flags & 0x02 and not (flags & 0x10):
 
             connection = (
                 source_ip,
@@ -60,19 +157,25 @@ def detect_suspicious(packet):
                 destination_port
             )
 
-            connection_attempts[connection] += 1
+            syn_attempts[connection] += 1
 
-            count = connection_attempts[connection]
+        # ----------------------------------------------------
+        # SYN-ACK Detection
+        # ----------------------------------------------------
 
-            if count == 10:
+        elif (flags & 0x02) and (flags & 0x10):
 
-                create_alert(
-                    "HIGH",
-                    f"Possible Port Scan: "
-                    f"{source_ip} -> "
-                    f"{destination_ip}:{destination_port} "
-                    f"({count} SYN attempts)"
-                )
+            original_connection = (
+                destination_ip,
+                source_ip,
+                source_port
+            )
+
+            syn_ack_responses[original_connection] += 1
+
+    # ========================================================
+    # ICMP Detection
+    # ========================================================
 
     elif ICMP in packet:
 
@@ -80,95 +183,101 @@ def detect_suspicious(packet):
 
         count = icmp_packets[source_ip]
 
-        if count == 20:
+        if count == ICMP_THRESHOLD:
 
             create_alert(
                 "MEDIUM",
                 f"High ICMP traffic detected from "
                 f"{source_ip} "
-                f"({count} ICMP packets)"
+                f"({count} ICMP packets)",
+                source_ip,
+                destination_ip,
+                "ICMP Traffic"
             )
 
 
-print("=" * 80)
-print("NID-TMS - INTRUSION DETECTION")
-print("=" * 80)
-print("Monitoring network traffic for 10 seconds...")
-print()
+# ============================================================
+# SYN anomaly analysis
+# ============================================================
 
-try:
+def analyze_syn_anomalies():
 
-    packets = sniff(
-        prn=detect_suspicious,
-        timeout=10
+    for connection, syn_count in syn_attempts.items():
+
+        if syn_count < SYN_THRESHOLD:
+            continue
+
+        response_count = syn_ack_responses.get(
+            connection,
+            0
+        )
+
+        unanswered_syns = max(
+            syn_count - response_count,
+            0
+        )
+
+        response_ratio = (
+            response_count / syn_count
+            if syn_count > 0
+            else 0
+        )
+
+        if (
+            unanswered_syns >= SYN_THRESHOLD
+            and response_ratio < 0.50
+        ):
+
+            source_ip, destination_ip, destination_port = connection
+
+            create_alert(
+                "MEDIUM",
+                f"SYN anomaly detected: "
+                f"{source_ip} -> "
+                f"{destination_ip}:{destination_port} | "
+                f"SYN attempts: {syn_count}, "
+                f"SYN-ACK responses: {response_count}, "
+                f"unanswered: {unanswered_syns}",
+                source_ip,
+                destination_ip,
+                "SYN Anomaly"
+            )
+
+
+# ============================================================
+# Final analysis
+# ============================================================
+
+def finalize_detection():
+
+    print()
+    print("Finalizing intrusion detection analysis...")
+
+    analyze_syn_anomalies()
+
+    print()
+    print("Detection summary:")
+    print(
+        f"Tracked TCP connections: "
+        f"{len(port_scan_tracker)}"
     )
 
-    print()
-    print("Capture completed.")
-    print("Packets captured:", len(packets))
+    print(
+        f"SYN connections: "
+        f"{len(syn_attempts)}"
+    )
 
-except Exception as error:
+    print(
+        f"ICMP sources: "
+        f"{len(icmp_packets)}"
+    )
 
-    print()
-    print("Capture error:", error)
+    print(
+        f"Alerts generated: "
+        f"{len(alerts)}"
+    )
 
-
-print()
-print("=" * 80)
-print("INTRUSION DETECTION SUMMARY")
-print("=" * 80)
-
-print("\nICMP TRAFFIC")
-print("-" * 80)
-
-if icmp_packets:
-
-    for ip, count in icmp_packets.most_common():
-
-        print(
-            f"{ip:15} | "
-            f"ICMP Packets: {count}"
-        )
-
-else:
-
-    print("No ICMP packets detected.")
-
-
-print("\nTCP SYN ATTEMPTS")
-print("-" * 80)
-
-if connection_attempts:
-
-    for connection, count in connection_attempts.most_common():
-
-        source_ip, destination_ip, destination_port = connection
-
-        print(
-            f"{source_ip} -> "
-            f"{destination_ip}:"
-            f"{destination_port} | "
-            f"SYN Attempts: {count}"
-        )
-
-else:
-
-    print("No TCP SYN packets detected.")
-
-
-print("\nSECURITY ALERTS")
-print("-" * 80)
-
-if alerts:
-
-    for alert in alerts:
-
-        print(alert)
-
-else:
-
-    print("No suspicious activity detected.")
-
-
-print("=" * 80)
-print("NID-TMS intrusion detection completed.")
+    print(
+        f"Detector risk score: "
+        f"{risk_score}"
+    )

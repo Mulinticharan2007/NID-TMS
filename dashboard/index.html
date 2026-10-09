@@ -1,248 +1,522 @@
-<!DOCTYPE html>
-<html>
+﻿<!DOCTYPE html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NID-TMS Security Dashboard</title>
 
     <style>
-        body {
-            font-family: Arial, sans-serif;
+        * {
+            box-sizing: border-box;
             margin: 0;
-            background: #f4f4f4;
+            padding: 0;
         }
 
-        .header {
-            background: #222;
-            color: white;
-            padding: 25px;
-            text-align: center;
+        body {
+            font-family: Arial, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 30px;
         }
 
         .container {
             max-width: 1400px;
-            margin: 30px auto;
-            padding: 0 20px;
+            margin: auto;
+        }
+
+        header {
+            margin-bottom: 30px;
+        }
+
+        header h1 {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+
+        header p {
+            color: #94a3b8;
+        }
+
+        .status {
+            display: inline-block;
+            margin-top: 12px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            background: #14532d;
+            color: #86efac;
+            font-size: 13px;
+        }
+
+        .section-title {
+            font-size: 20px;
+            margin: 30px 0 15px;
         }
 
         .cards {
-            display: flex;
-            gap: 20px;
-            margin-bottom: 25px;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 18px;
+        }
+
+        .traffic-cards {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 18px;
         }
 
         .card {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            flex: 1;
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 22px;
         }
 
         .card h3 {
-            margin-top: 0;
+            color: #94a3b8;
+            font-size: 14px;
+            margin-bottom: 12px;
         }
 
-        .number {
+        .card .value {
             font-size: 30px;
             font-weight: bold;
+        }
+
+        .chart-container {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 25px;
+            margin-top: 20px;
+        }
+
+        .chart {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-around;
+            height: 260px;
+            padding: 20px;
+            gap: 30px;
+        }
+
+        .bar-wrapper {
+            flex: 1;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+        }
+
+        .bar {
+            width: 70px;
+            min-height: 5px;
+            border-radius: 8px 8px 0 0;
+            transition: height 0.5s ease;
+        }
+
+        .tcp {
+            background: #38bdf8;
+        }
+
+        .udp {
+            background: #4ade80;
+        }
+
+        .icmp {
+            background: #c084fc;
+        }
+
+        .bar-label {
+            margin-top: 10px;
+            color: #cbd5e1;
+            font-size: 14px;
+        }
+
+        .bar-value {
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        .table-container {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            overflow-x: auto;
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 20px;
         }
 
-        th, td {
-            border: 1px solid #ddd;
-            padding: 12px;
+        th,
+        td {
+            padding: 14px;
             text-align: left;
+            border-bottom: 1px solid #334155;
+            font-size: 14px;
         }
 
         th {
-            background: #333;
-            color: white;
+            background: #172033;
+            color: #94a3b8;
         }
 
-        tr:nth-child(even) {
-            background: #f9f9f9;
+        tr:hover {
+            background: #253449;
         }
 
-        .status {
-            margin-bottom: 15px;
+        .badge {
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
             font-weight: bold;
         }
 
-        .error {
-            color: red;
+        .high {
+            background: #7f1d1d;
+            color: #fecaca;
+        }
+
+        .medium {
+            background: #78350f;
+            color: #fed7aa;
+        }
+
+        .low {
+            background: #14532d;
+            color: #bbf7d0;
+        }
+
+        .footer {
+            text-align: center;
+            color: #64748b;
+            margin-top: 30px;
+            padding: 20px;
+        }
+
+        .updated {
+            color: #64748b;
+            font-size: 13px;
+            margin-top: 8px;
+        }
+
+        @media (max-width: 1000px) {
+            .cards {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .traffic-cards {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 15px;
+            }
+
+            .cards,
+            .traffic-cards {
+                grid-template-columns: 1fr;
+            }
+
+            header h1 {
+                font-size: 25px;
+            }
         }
     </style>
 </head>
 
 <body>
 
-    <div class="header">
+<div class="container">
+
+    <header>
         <h1>NID-TMS Security Dashboard</h1>
-        <p>
-            Network Intrusion Detection & Real-Time Traffic Monitoring System
-        </p>
-    </div>
+        <p>Network Intrusion Detection & Real-Time Traffic Monitoring System</p>
+        <span class="status">● SYSTEM ONLINE</span>
+        <div class="updated">
+            Last updated: <span id="lastUpdated">Loading...</span>
+        </div>
+    </header>
 
-    <div class="container">
+    <h2 class="section-title">Security Overview</h2>
 
-        <div class="cards">
+    <div class="cards">
 
-            <div class="card">
-                <h3>Total Alerts</h3>
-                <div class="number" id="totalAlerts">0</div>
-            </div>
-
-            <div class="card">
-                <h3>High Severity</h3>
-                <div class="number" id="highAlerts">0</div>
-            </div>
-
-            <div class="card">
-                <h3>Medium Severity</h3>
-                <div class="number" id="mediumAlerts">0</div>
-            </div>
-
-            <div class="card">
-                <h3>Low Severity</h3>
-                <div class="number" id="lowAlerts">0</div>
-            </div>
-
+        <div class="card">
+            <h3>Total Alerts</h3>
+            <div class="value" id="totalAlerts">0</div>
         </div>
 
         <div class="card">
+            <h3>High Severity</h3>
+            <div class="value" id="highAlerts">0</div>
+        </div>
 
-            <h2>Security Alerts</h2>
+        <div class="card">
+            <h3>Medium Severity</h3>
+            <div class="value" id="mediumAlerts">0</div>
+        </div>
 
-            <div id="status" class="status">
-                🟢 System Online
+        <div class="card">
+            <h3>Risk Score</h3>
+            <div class="value" id="riskScore">0</div>
+        </div>
+
+    </div>
+
+    <h2 class="section-title">Network Traffic Statistics</h2>
+
+    <div class="traffic-cards">
+
+        <div class="card">
+            <h3>Total Packets</h3>
+            <div class="value" id="totalPackets">0</div>
+        </div>
+
+        <div class="card">
+            <h3>TCP Packets</h3>
+            <div class="value" id="tcpPackets">0</div>
+        </div>
+
+        <div class="card">
+            <h3>UDP Packets</h3>
+            <div class="value" id="udpPackets">0</div>
+        </div>
+
+        <div class="card">
+            <h3>ICMP Packets</h3>
+            <div class="value" id="icmpPackets">0</div>
+        </div>
+
+        <div class="card">
+            <h3>Total Bytes</h3>
+            <div class="value" id="totalBytes">0</div>
+        </div>
+
+    </div>
+
+    <div class="chart-container">
+
+        <h2>Traffic Distribution</h2>
+
+        <div class="chart">
+
+            <div class="bar-wrapper">
+                <div class="bar-value" id="tcpValue">0</div>
+                <div class="bar tcp" id="tcpBar"></div>
+                <div class="bar-label">TCP</div>
             </div>
 
-            <div id="lastUpdated" class="status">
-                Last updated: -
+            <div class="bar-wrapper">
+                <div class="bar-value" id="udpValue">0</div>
+                <div class="bar udp" id="udpBar"></div>
+                <div class="bar-label">UDP</div>
             </div>
 
-            <table>
-
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Timestamp</th>
-                        <th>Severity</th>
-                        <th>Alert Type</th>
-                        <th>Source IP</th>
-                        <th>Destination IP</th>
-                        <th>Description</th>
-                    </tr>
-                </thead>
-
-                <tbody id="alertsTable">
-                </tbody>
-
-            </table>
+            <div class="bar-wrapper">
+                <div class="bar-value" id="icmpValue">0</div>
+                <div class="bar icmp" id="icmpBar"></div>
+                <div class="bar-label">ICMP</div>
+            </div>
 
         </div>
 
     </div>
 
-    <script>
+    <h2 class="section-title">Security Alerts</h2>
 
-        async function loadAlerts() {
+    <div class="table-container">
 
-            try {
+        <table>
 
-                const response = await fetch("/alerts");
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Timestamp</th>
+                    <th>Severity</th>
+                    <th>Alert Type</th>
+                    <th>Source IP</th>
+                    <th>Destination IP</th>
+                    <th>Description</th>
+                    <th>Risk</th>
+                </tr>
+            </thead>
 
-                if (!response.ok) {
-                    throw new Error("API request failed");
-                }
+            <tbody id="alertsTable">
+                <tr>
+                    <td colspan="8">Loading alerts...</td>
+                </tr>
+            </tbody>
 
-                const data = await response.json();
+        </table>
 
-                const table = document.getElementById("alertsTable");
+    </div>
 
-                const status = document.getElementById("status");
+    <div class="footer">
+        NID-TMS | Network Security Monitoring System
+    </div>
 
-                table.innerHTML = "";
+</div>
 
-                let high = 0;
-                let medium = 0;
-                let low = 0;
+<script>
 
-                data.alerts.forEach(alert => {
+async function loadStats() {
 
-                    if (alert[2] === "HIGH") {
-                        high++;
-                    }
+    try {
 
-                    if (alert[2] === "MEDIUM") {
-                        medium++;
-                    }
+        const response = await fetch("/stats");
+        const data = await response.json();
 
-                    if (alert[2] === "LOW") {
-                        low++;
-                    }
+        document.getElementById("totalAlerts").textContent =
+            data.total_alerts;
 
-                    const row = document.createElement("tr");
+        document.getElementById("highAlerts").textContent =
+            data.high_alerts;
 
-                    row.innerHTML = `
-                        <td>${alert[0]}</td>
-                        <td>${alert[1]}</td>
-                        <td>${alert[2]}</td>
-                        <td>${alert[3]}</td>
-                        <td>${alert[4] || "-"}</td>
-                        <td>${alert[5] || "-"}</td>
-                        <td>${alert[6]}</td>
-                    `;
+        document.getElementById("mediumAlerts").textContent =
+            data.medium_alerts;
 
-                    table.appendChild(row);
+        document.getElementById("riskScore").textContent =
+            data.risk_score;
 
-                });
+    } catch (error) {
 
-                document.getElementById("totalAlerts").textContent =
-                    data.alerts.length;
+        console.error("Error loading security statistics:", error);
 
-                document.getElementById("highAlerts").textContent =
-                    high;
+    }
+}
 
-                document.getElementById("mediumAlerts").textContent =
-                    medium;
 
-                document.getElementById("lowAlerts").textContent =
-                    low;
+async function loadTraffic() {
 
-                status.textContent =
-                    "🟢 System Online | Total Alerts: " +
-                    data.alerts.length;
+    try {
 
-                document.getElementById("lastUpdated").textContent =
-                    "Last updated: " +
-                    new Date().toLocaleTimeString();
+        const response = await fetch("/traffic");
+        const data = await response.json();
 
-            }
+        document.getElementById("totalPackets").textContent =
+            data.total_packets.toLocaleString();
 
-            catch (error) {
+        document.getElementById("tcpPackets").textContent =
+            data.tcp_packets.toLocaleString();
 
-                document.getElementById("status").textContent =
-                    "🔴 Unable to connect to dashboard API.";
+        document.getElementById("udpPackets").textContent =
+            data.udp_packets.toLocaleString();
 
-                document.getElementById("status")
-                    .classList.add("error");
+        document.getElementById("icmpPackets").textContent =
+            data.icmp_packets.toLocaleString();
 
-                console.error(error);
+        document.getElementById("totalBytes").textContent =
+            data.total_bytes.toLocaleString();
 
-            }
+        document.getElementById("tcpValue").textContent =
+            data.tcp_packets.toLocaleString();
 
+        document.getElementById("udpValue").textContent =
+            data.udp_packets.toLocaleString();
+
+        document.getElementById("icmpValue").textContent =
+            data.icmp_packets.toLocaleString();
+
+        const maxPackets = Math.max(
+            data.tcp_packets,
+            data.udp_packets,
+            data.icmp_packets,
+            1
+        );
+
+        document.getElementById("tcpBar").style.height =
+            (data.tcp_packets / maxPackets * 180) + "px";
+
+        document.getElementById("udpBar").style.height =
+            (data.udp_packets / maxPackets * 180) + "px";
+
+        document.getElementById("icmpBar").style.height =
+            (data.icmp_packets / maxPackets * 180) + "px";
+
+    } catch (error) {
+
+        console.error("Error loading traffic statistics:", error);
+
+    }
+}
+
+
+async function loadAlerts() {
+
+    try {
+
+        const response = await fetch("/alerts");
+        const data = await response.json();
+
+        const table = document.getElementById("alertsTable");
+
+        table.innerHTML = "";
+
+        if (!data.alerts || data.alerts.length === 0) {
+
+            table.innerHTML =
+                '<tr><td colspan="8">No security alerts found.</td></tr>';
+
+            return;
         }
 
-        loadAlerts();
+        data.alerts.forEach(alert => {
 
-        setInterval(loadAlerts, 5000);
+            const row = document.createElement("tr");
 
-    </script>
+            const severity = alert[2]
+                ? alert[2].toLowerCase()
+                : "low";
+
+            row.innerHTML = `
+                <td>${alert[0]}</td>
+                <td>${alert[1]}</td>
+                <td>
+                    <span class="badge ${severity}">
+                        ${alert[2]}
+                    </span>
+                </td>
+                <td>${alert[3] || "-"}</td>
+                <td>${alert[4] || "-"}</td>
+                <td>${alert[5] || "-"}</td>
+                <td>${alert[6] || "-"}</td>
+                <td>${alert[7] ?? 0}</td>
+            `;
+
+            table.appendChild(row);
+
+        });
+
+    } catch (error) {
+
+        console.error("Error loading alerts:", error);
+
+    }
+}
+
+
+function updateDashboard() {
+
+    loadStats();
+    loadTraffic();
+    loadAlerts();
+
+    document.getElementById("lastUpdated").textContent =
+        new Date().toLocaleString();
+
+}
+
+
+updateDashboard();
+
+setInterval(updateDashboard, 5000);
+
+</script>
 
 </body>
 </html>

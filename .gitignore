@@ -1,5 +1,10 @@
 .venv/
 __pycache__/
-*.pyc
-*.db
+*.py[cod]
 .env
+*.db
+*.db-journal
+
+database/traffic_stats.json
+alerts/security_alerts.log
+reports/nid_tms_security_report.txt
