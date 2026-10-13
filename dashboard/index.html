@@ -1,522 +1,756 @@
-﻿<!DOCTYPE html>
+
+<!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NID-TMS Security Dashboard</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#080d18">
+<title>NID-TMS | Security Operations Center</title>
 
-    <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
-        body {
-            font-family: Arial, sans-serif;
-            background: #0f172a;
-            color: #e2e8f0;
-            padding: 30px;
-        }
-
-        .container {
-            max-width: 1400px;
-            margin: auto;
-        }
-
-        header {
-            margin-bottom: 30px;
-        }
-
-        header h1 {
-            font-size: 32px;
-            margin-bottom: 8px;
-        }
-
-        header p {
-            color: #94a3b8;
-        }
-
-        .status {
-            display: inline-block;
-            margin-top: 12px;
-            padding: 6px 12px;
-            border-radius: 20px;
-            background: #14532d;
-            color: #86efac;
-            font-size: 13px;
-        }
-
-        .section-title {
-            font-size: 20px;
-            margin: 30px 0 15px;
-        }
-
-        .cards {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 18px;
-        }
-
-        .traffic-cards {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 18px;
-        }
-
-        .card {
-            background: #1e293b;
-            border: 1px solid #334155;
-            border-radius: 12px;
-            padding: 22px;
-        }
-
-        .card h3 {
-            color: #94a3b8;
-            font-size: 14px;
-            margin-bottom: 12px;
-        }
-
-        .card .value {
-            font-size: 30px;
-            font-weight: bold;
-        }
-
-        .chart-container {
-            background: #1e293b;
-            border: 1px solid #334155;
-            border-radius: 12px;
-            padding: 25px;
-            margin-top: 20px;
-        }
-
-        .chart {
-            display: flex;
-            align-items: flex-end;
-            justify-content: space-around;
-            height: 260px;
-            padding: 20px;
-            gap: 30px;
-        }
-
-        .bar-wrapper {
-            flex: 1;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: flex-end;
-        }
-
-        .bar {
-            width: 70px;
-            min-height: 5px;
-            border-radius: 8px 8px 0 0;
-            transition: height 0.5s ease;
-        }
-
-        .tcp {
-            background: #38bdf8;
-        }
-
-        .udp {
-            background: #4ade80;
-        }
-
-        .icmp {
-            background: #c084fc;
-        }
-
-        .bar-label {
-            margin-top: 10px;
-            color: #cbd5e1;
-            font-size: 14px;
-        }
-
-        .bar-value {
-            margin-bottom: 8px;
-            font-weight: bold;
-        }
-
-        .table-container {
-            background: #1e293b;
-            border: 1px solid #334155;
-            border-radius: 12px;
-            overflow-x: auto;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        th,
-        td {
-            padding: 14px;
-            text-align: left;
-            border-bottom: 1px solid #334155;
-            font-size: 14px;
-        }
-
-        th {
-            background: #172033;
-            color: #94a3b8;
-        }
-
-        tr:hover {
-            background: #253449;
-        }
-
-        .badge {
-            padding: 5px 10px;
-            border-radius: 15px;
-            font-size: 12px;
-            font-weight: bold;
-        }
-
-        .high {
-            background: #7f1d1d;
-            color: #fecaca;
-        }
-
-        .medium {
-            background: #78350f;
-            color: #fed7aa;
-        }
-
-        .low {
-            background: #14532d;
-            color: #bbf7d0;
-        }
-
-        .footer {
-            text-align: center;
-            color: #64748b;
-            margin-top: 30px;
-            padding: 20px;
-        }
-
-        .updated {
-            color: #64748b;
-            font-size: 13px;
-            margin-top: 8px;
-        }
-
-        @media (max-width: 1000px) {
-            .cards {
-                grid-template-columns: repeat(2, 1fr);
-            }
-
-            .traffic-cards {
-                grid-template-columns: repeat(2, 1fr);
-            }
-        }
-
-        @media (max-width: 600px) {
-            body {
-                padding: 15px;
-            }
-
-            .cards,
-            .traffic-cards {
-                grid-template-columns: 1fr;
-            }
-
-            header h1 {
-                font-size: 25px;
-            }
-        }
-    </style>
+<style>
+:root {
+    --bg:#080d18; --panel:#111a2b; --border:#263650;
+    --text:#e8eef8; --muted:#8fa2bd; --blue:#53a8ff;
+    --green:#39d6a0; --red:#ff6376; --orange:#ffb454;
+}
+* { box-sizing:border-box; }
+html { scroll-behavior:smooth; }
+body {
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:Inter,"Segoe UI",Arial,sans-serif;
+}
+button,input,select { font:inherit; }
+button {
+    cursor:pointer; border:1px solid #31547b;
+    background:#183354; color:#ddecff;
+    padding:10px 14px; border-radius:7px;
+}
+button:hover { background:#23466d; }
+button:disabled { opacity:.5; cursor:wait; }
+.layout { display:flex; min-height:100vh; }
+.sidebar {
+    width:230px; flex-shrink:0; padding:26px 16px;
+    background:#0c1423; border-right:1px solid var(--border);
+}
+.brand { font-size:21px; font-weight:800; margin:0 8px 8px; }
+.brand span { color:var(--blue); }
+.brand-sub {
+    color:var(--muted); font-size:11px; margin:0 8px 34px;
+    letter-spacing:1.5px;
+}
+.nav-label {
+    color:#7185a2; font-size:10px; font-weight:700;
+    letter-spacing:1.6px; margin:22px 10px 10px;
+}
+.nav-item {
+    display:block; width:100%; padding:12px; margin:5px 0;
+    color:#a9bad1; border-radius:8px; border:1px solid transparent;
+    background:transparent; text-align:left; font-size:13px;
+}
+.nav-item:hover { background:#14243b; }
+.nav-item.active {
+    background:#172c48; color:#76baff; border-color:#25466d;
+}
+.sidebar-note {
+    margin-top:45px; padding:14px; border:1px solid var(--border);
+    border-radius:10px; color:var(--muted); font-size:12px; line-height:1.7;
+}
+main { min-width:0; flex:1; padding:28px; }
+.topbar {
+    display:flex; justify-content:space-between; align-items:center;
+    gap:16px; flex-wrap:wrap; margin-bottom:28px;
+}
+h1 { font-size:25px; margin:0 0 8px; }
+.subtitle { color:var(--muted); font-size:13px; line-height:1.6; }
+.actions { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.status { color:var(--green); font-size:12px; }
+.status::before {
+    content:""; display:inline-block; width:8px; height:8px;
+    background:currentColor; border-radius:50%; margin-right:7px;
+}
+.grid {
+    display:grid; grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:16px; margin-bottom:22px;
+}
+.card,.panel {
+    background:var(--panel); border:1px solid var(--border); border-radius:12px;
+}
+.card { padding:20px; }
+.card-label { font-size:12px; color:var(--muted); margin-bottom:15px; }
+.card-value {
+    font-size:30px; font-weight:750; letter-spacing:-.7px;
+    overflow-wrap:anywhere;
+}
+.card-foot { color:var(--muted); font-size:11px; margin-top:10px; }
+.blue { color:var(--blue); }
+.red { color:var(--red); }
+.orange { color:var(--orange); }
+.green { color:var(--green); }
+.panel { margin-bottom:22px; }
+.panel-head {
+    padding:20px; border-bottom:1px solid var(--border);
+    display:flex; justify-content:space-between; align-items:center;
+    flex-wrap:wrap; gap:12px;
+}
+.panel-title { font-size:16px; font-weight:700; }
+.panel-sub { color:var(--muted); font-size:12px; margin-top:6px; line-height:1.6; }
+.filters { display:flex; gap:9px; flex-wrap:wrap; }
+input,select {
+    background:#0b1423; border:1px solid var(--border); color:var(--text);
+    padding:10px 12px; border-radius:7px; outline:none;
+    min-width:130px; max-width:100%;
+}
+input:focus,select:focus { border-color:var(--blue); }
+.table-wrap { overflow-x:auto; }
+table { width:100%; border-collapse:collapse; min-width:1050px; }
+th {
+    text-align:left; padding:14px 16px; background:#0d1727;
+    color:var(--muted); font-size:10px; letter-spacing:.8px; white-space:nowrap;
+}
+td {
+    padding:15px 16px; border-top:1px solid #202d42;
+    font-size:12px; vertical-align:top; overflow-wrap:anywhere;
+}
+tbody tr:hover { background:#162238; }
+.ip { color:#8dc7ff; font-family:Consolas,monospace; white-space:nowrap; }
+.badge {
+    display:inline-block; padding:5px 8px; border-radius:5px;
+    font-size:10px; font-weight:800; white-space:nowrap;
+}
+.badge.high { color:#ff8795; background:#47212e; }
+.badge.medium { color:#ffc875; background:#45331e; }
+.badge.low { color:#66e6b7; background:#163b32; }
+.risk { font-weight:800; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.table-footer {
+    padding:16px 20px; display:flex; justify-content:space-between;
+    gap:12px; flex-wrap:wrap; color:var(--muted); font-size:12px;
+}
+.message { padding:28px; text-align:center; color:var(--muted); }
+.message.error { color:var(--red); }
+.bottom-grid {
+    display:grid; grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:18px; margin-bottom:22px;
+}
+.mini-panel { padding:20px; min-width:0; }
+.stat-row {
+    display:flex; justify-content:space-between; gap:12px;
+    padding:13px 0; border-bottom:1px solid var(--border); font-size:13px;
+}
+.stat-row:last-child { border-bottom:0; }
+.stat-row strong { font-variant-numeric:tabular-nums; }
+.bar {
+    height:6px; margin-top:8px; border-radius:8px;
+    background:#263650; overflow:hidden;
+}
+.bar span { display:block; height:100%; border-radius:inherit; transition:width .25s ease; }
+.section-anchor { scroll-margin-top:20px; }
+footer { padding:22px 0 5px; color:#7386a2; font-size:11px; line-height:1.7; }
+@media(max-width:1100px) {
+    .sidebar { width:190px; }
+    main { padding:20px; }
+    .grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media(max-width:700px) {
+    .sidebar { display:none; }
+    main { padding:15px; }
+    .grid { gap:10px; }
+    .card { padding:14px; }
+    .card-value { font-size:24px; }
+    .bottom-grid { grid-template-columns:1fr; }
+    h1 { font-size:22px; }
+    .panel-head { padding:15px; }
+    .filters { width:100%; }
+    .filters input,.filters select { flex:1; min-width:0; }
+}
+@media(prefers-reduced-motion:reduce) {
+    html { scroll-behavior:auto; }
+    *,*::before,*::after { transition:none!important; }
+}
+</style>
 </head>
-
 <body>
+<div class="layout">
+<aside class="sidebar">
+    <div class="brand">NID-<span>TMS</span></div>
+    <div class="brand-sub">NETWORK DEFENSE CENTER</div>
+    <div class="nav-label">MONITORING</div>
+    <button type="button" class="nav-item active" data-target="overviewSection">■ &nbsp; Security Overview</button>
+    <button type="button" class="nav-item" data-target="trafficSection">➤ &nbsp; Network Traffic</button>
+    <button type="button" class="nav-item" data-target="alertsSection">⚠ &nbsp; Security Alerts</button>
+    <div class="nav-label">MANAGEMENT</div>
+    <button type="button" class="nav-item" id="reportsButton">▦ &nbsp; Reports</button>
+    <button type="button" class="nav-item" id="settingsButton">⚙ &nbsp; Settings</button>
+    <div class="sidebar-note">
+        <strong>Detection engine</strong><br>
+        Rule-based monitoring<br>
+        <span style="color:var(--green)">✓ Dashboard ready</span>
+    </div>
+</aside>
 
-<div class="container">
+<main>
+<header class="topbar">
+    <div>
+        <h1>Security Operations Center</h1>
+        <div class="subtitle">Network Intrusion Detection &amp; Real-Time Traffic Monitoring</div>
+    </div>
+    <div class="actions">
+        <span class="status" id="connectionStatus">Checking server</span>
+        <button type="button" id="refreshButton" onclick="refreshDashboard()">Refresh Dashboard</button>
+    </div>
+</header>
 
-    <header>
-        <h1>NID-TMS Security Dashboard</h1>
-        <p>Network Intrusion Detection & Real-Time Traffic Monitoring System</p>
-        <span class="status">● SYSTEM ONLINE</span>
-        <div class="updated">
-            Last updated: <span id="lastUpdated">Loading...</span>
+<section class="grid section-anchor" id="overviewSection">
+    <div class="card">
+        <div class="card-label">TOTAL SECURITY ALERTS</div>
+        <div class="card-value blue" id="totalAlerts">-</div>
+        <div class="card-foot">Records returned by alerts API</div>
+    </div>
+    <div class="card">
+        <div class="card-label">HIGH SEVERITY</div>
+        <div class="card-value red" id="highAlerts">-</div>
+        <div class="card-foot">Alerts classified as HIGH</div>
+    </div>
+    <div class="card">
+        <div class="card-label">MEDIUM SEVERITY</div>
+        <div class="card-value orange" id="mediumAlerts">-</div>
+        <div class="card-foot">Alerts classified as MEDIUM</div>
+    </div>
+    <div class="card">
+        <div class="card-label">LOW SEVERITY</div>
+        <div class="card-value green" id="lowAlerts">-</div>
+        <div class="card-foot">Alerts classified as LOW</div>
+    </div>
+</section>
+
+<section class="bottom-grid">
+    <div class="panel mini-panel">
+        <div class="panel-title">Severity Distribution</div>
+        <div class="panel-sub">Based on all loaded alert records</div>
+        <div class="stat-row"><span>High</span><strong id="highSummary">-</strong></div>
+        <div class="bar"><span id="highBar" style="width:0;background:var(--red)"></span></div>
+        <div class="stat-row"><span>Medium</span><strong id="mediumSummary">-</strong></div>
+        <div class="bar"><span id="mediumBar" style="width:0;background:var(--orange)"></span></div>
+        <div class="stat-row"><span>Low</span><strong id="lowSummary">-</strong></div>
+        <div class="bar"><span id="lowBar" style="width:0;background:var(--green)"></span></div>
+        <div class="stat-row"><span>Total</span><strong id="severityTotal">-</strong></div>
+    </div>
+    <div class="panel mini-panel">
+        <div class="panel-title">Alert Intelligence</div>
+        <div class="panel-sub">Classification of returned alert records</div>
+        <div class="stat-row"><span>Port Scan Alerts</span><strong id="portScanCount">-</strong></div>
+        <div class="stat-row"><span>SYN Anomaly Alerts</span><strong id="synCount">-</strong></div>
+        <div class="stat-row"><span>ICMP Traffic Alerts</span><strong id="icmpCount">-</strong></div>
+        <div class="stat-row"><span>System Test Alerts</span><strong id="testCount">-</strong></div>
+        <div class="stat-row"><span>Other Alerts</span><strong id="otherCount">-</strong></div>
+        <div class="stat-row"><span>Total Classified</span><strong id="classifiedTotal">-</strong></div>
+    </div>
+</section>
+
+<section class="panel section-anchor" id="trafficSection">
+    <div class="panel-head">
+        <div>
+            <div class="panel-title">Network Traffic</div>
+            <div class="panel-sub">Recent packet metadata from the local traffic database</div>
         </div>
-    </header>
-
-    <h2 class="section-title">Security Overview</h2>
-
-    <div class="cards">
-
-        <div class="card">
-            <h3>Total Alerts</h3>
-            <div class="value" id="totalAlerts">0</div>
+        <div class="filters">
+            <input id="trafficSearch" type="search" placeholder="Search IP or port..." aria-label="Search network traffic">
+            <select id="protocolFilter" aria-label="Filter protocol">
+                <option value="ALL">All protocols</option>
+                <option value="TCP">TCP</option>
+                <option value="UDP">UDP</option>
+                <option value="ICMP">ICMP</option>
+                <option value="OTHER">OTHER</option>
+            </select>
+            <button type="button" onclick="loadTraffic()">Refresh Traffic</button>
         </div>
-
-        <div class="card">
-            <h3>High Severity</h3>
-            <div class="value" id="highAlerts">0</div>
-        </div>
-
-        <div class="card">
-            <h3>Medium Severity</h3>
-            <div class="value" id="mediumAlerts">0</div>
-        </div>
-
-        <div class="card">
-            <h3>Risk Score</h3>
-            <div class="value" id="riskScore">0</div>
-        </div>
-
     </div>
 
-    <h2 class="section-title">Network Traffic Statistics</h2>
-
-    <div class="traffic-cards">
-
-        <div class="card">
-            <h3>Total Packets</h3>
-            <div class="value" id="totalPackets">0</div>
+    <div class="bottom-grid" style="padding:18px;margin-bottom:0">
+        <div class="panel mini-panel">
+            <div class="panel-title">Packets Captured</div>
+            <div class="card-value blue" id="trafficTotal">-</div>
         </div>
-
-        <div class="card">
-            <h3>TCP Packets</h3>
-            <div class="value" id="tcpPackets">0</div>
+        <div class="panel mini-panel">
+            <div class="panel-title">TCP Packets</div>
+            <div class="card-value blue" id="trafficTCP">-</div>
         </div>
-
-        <div class="card">
-            <h3>UDP Packets</h3>
-            <div class="value" id="udpPackets">0</div>
+        <div class="panel mini-panel">
+            <div class="panel-title">UDP Packets</div>
+            <div class="card-value green" id="trafficUDP">-</div>
         </div>
-
-        <div class="card">
-            <h3>ICMP Packets</h3>
-            <div class="value" id="icmpPackets">0</div>
+        <div class="panel mini-panel">
+            <div class="panel-title">ICMP Packets</div>
+            <div class="card-value orange" id="trafficICMP">-</div>
         </div>
-
-        <div class="card">
-            <h3>Total Bytes</h3>
-            <div class="value" id="totalBytes">0</div>
+        <div class="panel mini-panel">
+            <div class="panel-title">Other Packets</div>
+            <div class="card-value" id="trafficOTHER">-</div>
         </div>
-
     </div>
 
-    <div class="chart-container">
-
-        <h2>Traffic Distribution</h2>
-
-        <div class="chart">
-
-            <div class="bar-wrapper">
-                <div class="bar-value" id="tcpValue">0</div>
-                <div class="bar tcp" id="tcpBar"></div>
-                <div class="bar-label">TCP</div>
-            </div>
-
-            <div class="bar-wrapper">
-                <div class="bar-value" id="udpValue">0</div>
-                <div class="bar udp" id="udpBar"></div>
-                <div class="bar-label">UDP</div>
-            </div>
-
-            <div class="bar-wrapper">
-                <div class="bar-value" id="icmpValue">0</div>
-                <div class="bar icmp" id="icmpBar"></div>
-                <div class="bar-label">ICMP</div>
-            </div>
-
-        </div>
-
-    </div>
-
-    <h2 class="section-title">Security Alerts</h2>
-
-    <div class="table-container">
-
+    <div class="table-wrap">
         <table>
-
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Timestamp</th>
-                    <th>Severity</th>
-                    <th>Alert Type</th>
-                    <th>Source IP</th>
-                    <th>Destination IP</th>
-                    <th>Description</th>
-                    <th>Risk</th>
-                </tr>
-            </thead>
-
-            <tbody id="alertsTable">
-                <tr>
-                    <td colspan="8">Loading alerts...</td>
-                </tr>
+            <thead><tr>
+                <th>TIME</th><th>SOURCE IP</th><th>DESTINATION IP</th>
+                <th>PROTOCOL</th><th>SOURCE PORT</th><th>DESTINATION PORT</th><th>SIZE (BYTES)</th>
+            </tr></thead>
+            <tbody id="trafficTable">
+                <tr><td colspan="7" class="message">Loading network traffic...</td></tr>
             </tbody>
-
         </table>
-
     </div>
-
-    <div class="footer">
-        NID-TMS | Network Security Monitoring System
+    <div class="table-footer">
+        <span id="trafficCount">Waiting for traffic data...</span>
+        <span id="trafficUpdated">Not refreshed yet</span>
     </div>
+</section>
 
+<section class="panel section-anchor" id="alertsSection">
+    <div class="panel-head">
+        <div>
+            <div class="panel-title">Security Alert Log</div>
+            <div class="panel-sub">Source IP, destination IP, severity and detection details</div>
+        </div>
+        <div class="filters">
+            <input id="searchInput" type="search" placeholder="Search IP or alert..." aria-label="Search alerts">
+            <select id="severityFilter" aria-label="Filter by severity">
+                <option value="ALL">All severities</option>
+                <option value="HIGH">High</option>
+                <option value="MEDIUM">Medium</option>
+                <option value="LOW">Low</option>
+            </select>
+            <button type="button" onclick="downloadCSV()">Export CSV</button>
+        </div>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead><tr>
+                <th>ID / TIME</th><th>SEVERITY</th><th>ALERT TYPE</th>
+                <th>SOURCE IP</th><th>DESTINATION IP</th><th>DESCRIPTION</th><th>RISK</th>
+            </tr></thead>
+            <tbody id="alertsTable">
+                <tr><td colspan="7" class="message">Connecting to NID-TMS API...</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="table-footer">
+        <span id="resultCount">Waiting for alert data...</span>
+        <span id="lastUpdated">Not refreshed yet</span>
+    </div>
+</section>
+
+<footer>
+    NID-TMS | Network Intrusion Detection &amp; Traffic Monitoring System<br>
+    Rule-based alerts are indicators for investigation, not proof of a confirmed attack.
+</footer>
+</main>
 </div>
 
 <script>
+"use strict";
 
-async function loadStats() {
+let allAlerts = [];
+let allTraffic = [];
+let alertsLoaded = false;
+let trafficLoaded = false;
+let alertsLoading = false;
+let trafficLoading = false;
 
-    try {
-
-        const response = await fetch("/stats");
-        const data = await response.json();
-
-        document.getElementById("totalAlerts").textContent =
-            data.total_alerts;
-
-        document.getElementById("highAlerts").textContent =
-            data.high_alerts;
-
-        document.getElementById("mediumAlerts").textContent =
-            data.medium_alerts;
-
-        document.getElementById("riskScore").textContent =
-            data.risk_score;
-
-    } catch (error) {
-
-        console.error("Error loading security statistics:", error);
-
-    }
+function byId(id) {
+    return document.getElementById(id);
 }
 
+function safeText(value, fallback = "-") {
+    return value === null || value === undefined || value === ""
+        ? fallback : String(value);
+}
 
-async function loadTraffic() {
+function severityClass(value) {
+    const severity = safeText(value, "LOW").toUpperCase();
+    if (severity === "HIGH" || severity === "CRITICAL") return "high";
+    if (severity === "MEDIUM") return "medium";
+    return "low";
+}
 
-    try {
+function setMessage(table, message, isError = false) {
+    table.replaceChildren();
+    const row = document.createElement("tr");
+    const cell = document.createElement("td");
+    cell.colSpan = 7;
+    cell.className = isError ? "message error" : "message";
+    cell.textContent = message;
+    row.appendChild(cell);
+    table.appendChild(row);
+}
 
-        const response = await fetch("/traffic");
-        const data = await response.json();
+function setupSidebarNavigation() {
+    const items = document.querySelectorAll(".nav-item[data-target]");
+    items.forEach(item => {
+        item.addEventListener("click", () => {
+            const target = byId(item.dataset.target);
+            if (!target) return;
+            items.forEach(nav => nav.classList.toggle("active", nav === item));
+            target.scrollIntoView({behavior:"smooth", block:"start"});
+        });
+    });
 
-        document.getElementById("totalPackets").textContent =
-            data.total_packets.toLocaleString();
+    byId("reportsButton").addEventListener("click", () => {
+        byId("alertsSection").scrollIntoView({behavior:"smooth",block:"start"});
+        alert("Use Export CSV in Security Alert Log to download a report.");
+    });
 
-        document.getElementById("tcpPackets").textContent =
-            data.tcp_packets.toLocaleString();
+    byId("settingsButton").addEventListener("click", () => {
+        alert("NID-TMS settings\n\nAlerts refresh every 15 seconds.\nTraffic refreshes every 5 seconds.\nAPI endpoints: /alerts and /traffic.");
+    });
+}
 
-        document.getElementById("udpPackets").textContent =
-            data.udp_packets.toLocaleString();
+function classifyAlert(alert) {
+    const type = String(alert.alert_type || "").toLowerCase();
+    const description = String(alert.description || "").toLowerCase();
 
-        document.getElementById("icmpPackets").textContent =
-            data.icmp_packets.toLocaleString();
+    if (
+        type === "test" || type === "system test" ||
+        type.includes("system test") ||
+        description.includes("dashboard refresh test") ||
+        description.includes("database integration test") ||
+        description.includes("safe alert pipeline test") ||
+        description.includes("test upgraded alert")
+    ) return "System Test";
 
-        document.getElementById("totalBytes").textContent =
-            data.total_bytes.toLocaleString();
+    if (
+        type.includes("port scan") ||
+        description.includes("port scan") ||
+        description.includes("destination ports contacted") ||
+        description.includes("unique destination ports")
+    ) return "Port Scan";
 
-        document.getElementById("tcpValue").textContent =
-            data.tcp_packets.toLocaleString();
+    if (
+        type.includes("syn") ||
+        description.includes("syn anomaly") ||
+        description.includes("syn attempts") ||
+        description.includes("syn-ack")
+    ) return "SYN Anomaly";
 
-        document.getElementById("udpValue").textContent =
-            data.udp_packets.toLocaleString();
+    if (type.includes("icmp") || description.includes("icmp traffic")) {
+        return "ICMP Traffic";
+    }
+    return "Other";
+}
 
-        document.getElementById("icmpValue").textContent =
-            data.icmp_packets.toLocaleString();
+function getAlertIPs(alert) {
+    let source = String(alert.source_ip || "").trim();
+    let destination = String(alert.destination_ip || "").trim();
 
-        const maxPackets = Math.max(
-            data.tcp_packets,
-            data.udp_packets,
-            data.icmp_packets,
-            1
+    const missing = value =>
+        !value || value.toLowerCase() === "unknown" || value === "-";
+
+    const description = String(alert.description || "");
+    const pair = description.match(
+        /\b((?:\d{1,3}\.){3}\d{1,3})\s*->\s*((?:\d{1,3}\.){3}\d{1,3})\b/
+    );
+
+    if (pair) {
+        if (missing(source)) source = pair[1];
+        if (missing(destination)) destination = pair[2];
+    } else {
+        const match = description.match(
+            /\bfrom\s+((?:\d{1,3}\.){3}\d{1,3})\b/i
         );
-
-        document.getElementById("tcpBar").style.height =
-            (data.tcp_packets / maxPackets * 180) + "px";
-
-        document.getElementById("udpBar").style.height =
-            (data.udp_packets / maxPackets * 180) + "px";
-
-        document.getElementById("icmpBar").style.height =
-            (data.icmp_packets / maxPackets * 180) + "px";
-
-    } catch (error) {
-
-        console.error("Error loading traffic statistics:", error);
-
+        if (match && missing(source)) source = match[1];
     }
+
+    return {
+        source:missing(source) ? "Unknown" : source,
+        destination:missing(destination) ? "Unknown" : destination
+    };
 }
 
+function updateSummary() {
+    const countSeverity = severity =>
+        allAlerts.filter(alert =>
+            String(alert.severity || "LOW").toUpperCase() === severity
+        ).length;
+
+    const high = countSeverity("HIGH");
+    const medium = countSeverity("MEDIUM");
+    const low = countSeverity("LOW");
+    const total = allAlerts.length;
+
+    byId("totalAlerts").textContent = total;
+    byId("highAlerts").textContent = high;
+    byId("mediumAlerts").textContent = medium;
+    byId("lowAlerts").textContent = low;
+    byId("highSummary").textContent = high;
+    byId("mediumSummary").textContent = medium;
+    byId("lowSummary").textContent = low;
+    byId("severityTotal").textContent = total;
+
+    byId("highBar").style.width = (total ? high / total * 100 : 0) + "%";
+    byId("mediumBar").style.width = (total ? medium / total * 100 : 0) + "%";
+    byId("lowBar").style.width = (total ? low / total * 100 : 0) + "%";
+
+    const categories = {
+        "Port Scan":0,
+        "SYN Anomaly":0,
+        "ICMP Traffic":0,
+        "System Test":0,
+        "Other":0
+    };
+
+    allAlerts.forEach(alert => categories[classifyAlert(alert)]++);
+    byId("portScanCount").textContent = categories["Port Scan"];
+    byId("synCount").textContent = categories["SYN Anomaly"];
+    byId("icmpCount").textContent = categories["ICMP Traffic"];
+    byId("testCount").textContent = categories["System Test"];
+    byId("otherCount").textContent = categories["Other"];
+    byId("classifiedTotal").textContent =
+        Object.values(categories).reduce((sum,count) => sum + count, 0);
+}
 
 async function loadAlerts() {
+    if (alertsLoading) return;
+    alertsLoading = true;
+
+    const table = byId("alertsTable");
+    const status = byId("connectionStatus");
 
     try {
+        const response = await fetch("/alerts", {
+            headers:{"Accept":"application/json"},
+            cache:"no-store"
+        });
+        if (!response.ok) throw new Error("Alerts API returned HTTP " + response.status);
 
-        const response = await fetch("/alerts");
         const data = await response.json();
-
-        const table = document.getElementById("alertsTable");
-
-        table.innerHTML = "";
-
-        if (!data.alerts || data.alerts.length === 0) {
-
-            table.innerHTML =
-                '<tr><td colspan="8">No security alerts found.</td></tr>';
-
-            return;
+        const received = Array.isArray(data) ? data : data.alerts;
+        if (!Array.isArray(received)) {
+            throw new Error("API response does not contain an alerts array");
         }
 
-        data.alerts.forEach(alert => {
-
-            const row = document.createElement("tr");
-
-            const severity = alert[2]
-                ? alert[2].toLowerCase()
-                : "low";
-
-            row.innerHTML = `
-                <td>${alert[0]}</td>
-                <td>${alert[1]}</td>
-                <td>
-                    <span class="badge ${severity}">
-                        ${alert[2]}
-                    </span>
-                </td>
-                <td>${alert[3] || "-"}</td>
-                <td>${alert[4] || "-"}</td>
-                <td>${alert[5] || "-"}</td>
-                <td>${alert[6] || "-"}</td>
-                <td>${alert[7] ?? 0}</td>
-            `;
-
-            table.appendChild(row);
-
-        });
-
+        allAlerts = received;
+        alertsLoaded = true;
+        status.textContent = "API Connected";
+        status.style.color = "var(--green)";
+        updateSummary();
+        renderAlerts();
+        byId("lastUpdated").textContent =
+            "Last updated: " + new Date().toLocaleTimeString();
     } catch (error) {
-
-        console.error("Error loading alerts:", error);
-
+        console.error("Unable to load alerts:", error);
+        status.textContent = "API Disconnected";
+        status.style.color = "var(--red)";
+        if (!alertsLoaded) {
+            setMessage(table, "Cannot load alerts. Start the FastAPI server and refresh this page.", true);
+            byId("resultCount").textContent = "No alert data loaded.";
+        } else {
+            byId("resultCount").textContent = "Refresh failed. Showing previously loaded alert data.";
+        }
+    } finally {
+        alertsLoading = false;
     }
 }
 
+function renderAlerts() {
+    const table = byId("alertsTable");
+    const search = byId("searchInput").value.trim().toLowerCase();
+    const filter = byId("severityFilter").value;
 
-function updateDashboard() {
+    const filtered = allAlerts.filter(alert => {
+        const severity = safeText(alert.severity,"LOW").toUpperCase();
+        const matchesSeverity = filter === "ALL" || severity === filter;
+        const searchable = [
+            alert.id,alert.timestamp,alert.severity,alert.alert_type,
+            alert.source_ip,alert.destination_ip,alert.description,alert.risk
+        ].map(value => safeText(value)).join(" ").toLowerCase();
+        return matchesSeverity && searchable.includes(search);
+    });
 
-    loadStats();
-    loadTraffic();
-    loadAlerts();
+    table.replaceChildren();
 
-    document.getElementById("lastUpdated").textContent =
-        new Date().toLocaleString();
+    if (!filtered.length) {
+        setMessage(table,"No alerts match your search or filter.");
+    } else {
+        filtered.forEach(alert => {
+            const row = document.createElement("tr");
+            const timeCell = document.createElement("td");
+            timeCell.textContent = "#" + safeText(alert.id) + "\n" + safeText(alert.timestamp);
+            timeCell.style.whiteSpace = "pre-line";
+            row.appendChild(timeCell);
 
+            const severityCell = document.createElement("td");
+            const badge = document.createElement("span");
+            badge.className = "badge " + severityClass(alert.severity);
+            badge.textContent = safeText(alert.severity,"LOW").toUpperCase();
+            severityCell.appendChild(badge);
+            row.appendChild(severityCell);
+
+            const typeCell = document.createElement("td");
+            typeCell.textContent = safeText(alert.alert_type);
+            row.appendChild(typeCell);
+
+            const ips = getAlertIPs(alert);
+            const sourceCell = document.createElement("td");
+            sourceCell.className = "ip";
+            sourceCell.textContent = ips.source;
+            row.appendChild(sourceCell);
+
+            const destinationCell = document.createElement("td");
+            destinationCell.className = "ip";
+            destinationCell.textContent = ips.destination;
+            row.appendChild(destinationCell);
+
+            const descriptionCell = document.createElement("td");
+            descriptionCell.textContent = safeText(alert.description);
+            descriptionCell.style.minWidth = "250px";
+            row.appendChild(descriptionCell);
+
+            const riskCell = document.createElement("td");
+            riskCell.className = "risk";
+            const risk = Number(alert.risk);
+            riskCell.textContent = Number.isFinite(risk) ? risk + "/100" : "N/A";
+            row.appendChild(riskCell);
+
+            table.appendChild(row);
+        });
+    }
+
+    byId("resultCount").textContent =
+        "Showing " + filtered.length + " of " + allAlerts.length + " alerts";
 }
 
+async function loadTraffic() {
+    if (trafficLoading) return;
+    trafficLoading = true;
+    const table = byId("trafficTable");
 
-updateDashboard();
+    try {
+        const response = await fetch("/traffic", {
+            headers:{"Accept":"application/json"},
+            cache:"no-store"
+        });
+        if (!response.ok) throw new Error("Traffic API returned HTTP " + response.status);
 
-setInterval(updateDashboard, 5000);
+        const data = await response.json();
+        allTraffic = Array.isArray(data.traffic) ? data.traffic : [];
+        trafficLoaded = true;
 
+        const stats = data.stats || {};
+        byId("trafficTotal").textContent =
+            safeText(stats.total_packets, data.total ?? allTraffic.length);
+        byId("trafficTCP").textContent = safeText(stats.tcp_packets,0);
+        byId("trafficUDP").textContent = safeText(stats.udp_packets,0);
+        byId("trafficICMP").textContent = safeText(stats.icmp_packets,0);
+        byId("trafficOTHER").textContent = safeText(stats.other_packets,0);
+
+        renderTraffic();
+        byId("trafficUpdated").textContent =
+            "Updated: " + new Date().toLocaleTimeString();
+    } catch (error) {
+        console.error("Unable to load traffic:", error);
+        if (!trafficLoaded) {
+            setMessage(table,"Cannot load traffic. Check that the server and /traffic API are running.",true);
+            byId("trafficCount").textContent = "Traffic data unavailable.";
+        } else {
+            byId("trafficCount").textContent = "Refresh failed. Showing previously loaded traffic.";
+        }
+    } finally {
+        trafficLoading = false;
+    }
+}
+
+function renderTraffic() {
+    const table = byId("trafficTable");
+    const search = byId("trafficSearch").value.trim().toLowerCase();
+    const protocol = byId("protocolFilter").value;
+
+    const filtered = allTraffic.filter(packet => {
+        const packetProtocol = safeText(packet.protocol,"OTHER").toUpperCase();
+        const matchesProtocol = protocol === "ALL" || packetProtocol === protocol;
+        const searchable = [
+            packet.timestamp,packet.source_ip,packet.destination_ip,
+            packet.protocol,packet.source_port,packet.destination_port,packet.packet_size
+        ].map(value => safeText(value)).join(" ").toLowerCase();
+        return matchesProtocol && searchable.includes(search);
+    });
+
+    table.replaceChildren();
+    if (!filtered.length) {
+        setMessage(table,"No packets match your search or protocol filter.");
+    } else {
+        filtered.forEach(packet => {
+            const row = document.createElement("tr");
+            [
+                packet.timestamp,packet.source_ip,packet.destination_ip,
+                packet.protocol,packet.source_port,packet.destination_port,packet.packet_size
+            ].forEach(value => {
+                const cell = document.createElement("td");
+                cell.textContent = safeText(value);
+                row.appendChild(cell);
+            });
+            table.appendChild(row);
+        });
+    }
+
+    byId("trafficCount").textContent =
+        "Showing " + filtered.length + " of " + allTraffic.length + " recent packets";
+}
+
+function downloadCSV() {
+    if (!allAlerts.length) {
+        alert("No alert data to export. Check the API connection.");
+        return;
+    }
+
+    const columns = [
+        "id","timestamp","severity","alert_type",
+        "source_ip","destination_ip","description","risk"
+    ];
+
+    const escapeCSV = value =>
+        '"' + safeText(value,"").replace(/"/g,'""') + '"';
+
+    const lines = [
+        columns.join(","),
+        ...allAlerts.map(alert =>
+            columns.map(column => escapeCSV(alert[column])).join(",")
+        )
+    ];
+
+    const blob = new Blob(["\uFEFF" + lines.join("\r\n")], {
+        type:"text/csv;charset=utf-8;"
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "nid-tms-security-alerts.csv";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url),1000);
+}
+
+async function refreshDashboard() {
+    const button = byId("refreshButton");
+    button.disabled = true;
+    button.textContent = "Refreshing...";
+    try {
+        await Promise.all([loadAlerts(),loadTraffic()]);
+    } finally {
+        button.disabled = false;
+        button.textContent = "Refresh Dashboard";
+    }
+}
+
+byId("searchInput").addEventListener("input",renderAlerts);
+byId("severityFilter").addEventListener("change",renderAlerts);
+byId("trafficSearch").addEventListener("input",renderTraffic);
+byId("protocolFilter").addEventListener("change",renderTraffic);
+
+setupSidebarNavigation();
+loadAlerts();
+loadTraffic();
+setInterval(loadAlerts,15000);
+setInterval(loadTraffic,5000);
 </script>
-
 </body>
 </html>

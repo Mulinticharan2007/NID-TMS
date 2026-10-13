@@ -1,7 +1,7 @@
 from pathlib import Path
 import sys
-from collections import Counter, defaultdict
-from datetime import datetime
+from collections import Counter, defaultdict, deque
+from datetime import datetime, timedelta
 
 from scapy.all import IP, TCP, ICMP
 
@@ -10,6 +10,7 @@ sys.path.append(str(PROJECT_ROOT))
 
 from config.settings import (
     PORT_SCAN_THRESHOLD,
+    PORT_SCAN_WINDOW_SECONDS,
     ICMP_THRESHOLD,
     SYN_THRESHOLD
 )
@@ -24,8 +25,9 @@ from database.database_manager import save_alert as save_database_alert
 
 syn_attempts = Counter()
 syn_ack_responses = Counter()
+syn_anomaly_alerted = set()
 
-port_scan_tracker = defaultdict(set)
+port_scan_tracker = defaultdict(deque)
 port_scan_alerted = set()
 
 icmp_packets = Counter()
@@ -112,39 +114,40 @@ def detect_suspicious(packet):
         flags = packet[TCP].flags
 
         # ----------------------------------------------------
-        # Port Scan Detection
+        # Port Scan Detection - Rolling Time Window
         # ----------------------------------------------------
 
-        scan_target = (
-            source_ip,
-            destination_ip
+        scan_target = (source_ip, destination_ip)
+        current_time = datetime.now()
+        observations = port_scan_tracker[scan_target]
+        cutoff_time = current_time - timedelta(
+            seconds=PORT_SCAN_WINDOW_SECONDS
         )
 
-        port_scan_tracker[scan_target].add(
-            destination_port
-        )
+        while observations and observations[0][0] < cutoff_time:
+            observations.popleft()
 
-        unique_ports = len(
-            port_scan_tracker[scan_target]
-        )
+        observations.append((current_time, destination_port))
+        unique_ports = len({
+            port for timestamp, port in observations
+        })
 
         if (
             unique_ports >= PORT_SCAN_THRESHOLD
             and scan_target not in port_scan_alerted
         ):
-
             port_scan_alerted.add(scan_target)
 
             create_alert(
                 "HIGH",
                 f"Possible Port Scan detected: "
                 f"{source_ip} -> {destination_ip} "
-                f"({unique_ports} unique destination ports)",
+                f"({unique_ports} unique destination ports "
+                f"within {PORT_SCAN_WINDOW_SECONDS} seconds)",
                 source_ip,
                 destination_ip,
                 "Port Scan"
             )
-
         # ----------------------------------------------------
         # SYN Detection
         # ----------------------------------------------------
@@ -226,7 +229,9 @@ def analyze_syn_anomalies():
         if (
             unanswered_syns >= SYN_THRESHOLD
             and response_ratio < 0.50
+            and connection not in syn_anomaly_alerted
         ):
+            syn_anomaly_alerted.add(connection)
 
             source_ip, destination_ip, destination_port = connection
 
