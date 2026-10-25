@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -69,7 +68,7 @@ h1 { font-size:25px; margin:0 0 8px; }
     background:currentColor; border-radius:50%; margin-right:7px;
 }
 .grid {
-    display:grid; grid-template-columns:repeat(4,minmax(0,1fr));
+    display:grid; grid-template-columns:repeat(5,minmax(0,1fr));
     gap:16px; margin-bottom:22px;
 }
 .card,.panel {
@@ -219,6 +218,11 @@ footer { padding:22px 0 5px; color:#7386a2; font-size:11px; line-height:1.7; }
         <div class="card-label">LOW SEVERITY</div>
         <div class="card-value green" id="lowAlerts">-</div>
         <div class="card-foot">Alerts classified as LOW</div>
+    </div>
+    <div class="card">
+        <div class="card-label">MAXIMUM RECORDED ALERT RISK</div>
+        <div class="card-value orange" id="riskScore">-</div>
+        <div class="card-foot">Highest stored alert score, out of 100</div>
     </div>
 </section>
 
@@ -550,6 +554,31 @@ async function loadAlerts() {
     }
 }
 
+async function loadRiskScore() {
+    const riskElement = byId("riskScore");
+
+    try {
+        const response = await fetch("/stats", {
+            headers: {"Accept": "application/json"},
+            cache: "no-store"
+        });
+
+        if (!response.ok) {
+            throw new Error("Stats API returned HTTP " + response.status);
+        }
+
+        const stats = await response.json();
+        const risk = Number(stats.risk_score);
+
+        riskElement.textContent = Number.isFinite(risk)
+            ? Math.max(0, Math.min(100, risk)) + "/100"
+            : "N/A";
+    } catch (error) {
+        console.error("Unable to load risk score:", error);
+        riskElement.textContent = "N/A";
+    }
+}
+
 function renderAlerts() {
     const table = byId("alertsTable");
     const search = byId("searchInput").value.trim().toLowerCase();
@@ -734,7 +763,7 @@ async function refreshDashboard() {
     button.disabled = true;
     button.textContent = "Refreshing...";
     try {
-        await Promise.all([loadAlerts(),loadTraffic()]);
+        await Promise.all([loadAlerts(),loadTraffic(),loadRiskScore()]);
     } finally {
         button.disabled = false;
         button.textContent = "Refresh Dashboard";
@@ -749,7 +778,9 @@ byId("protocolFilter").addEventListener("change",renderTraffic);
 setupSidebarNavigation();
 loadAlerts();
 loadTraffic();
+loadRiskScore();
 setInterval(loadAlerts,15000);
+setInterval(loadRiskScore,15000);
 setInterval(loadTraffic,5000);
 </script>
 </body>
