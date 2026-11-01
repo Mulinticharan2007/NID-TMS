@@ -1,7 +1,7 @@
 
 from pathlib import Path
 import sys
-from collections import Counter, defaultdict, deque
+from collections import defaultdict, deque
 from datetime import datetime, timedelta
 
 from scapy.all import IP, TCP, ICMP
@@ -14,7 +14,9 @@ from config.settings import (
     PORT_SCAN_THRESHOLD,
     PORT_SCAN_WINDOW_SECONDS,
     ICMP_THRESHOLD,
+    ICMP_WINDOW_SECONDS,
     SYN_THRESHOLD,
+    SYN_WINDOW_SECONDS,
 )
 
 from alerts.alert_manager import save_alert
@@ -25,14 +27,17 @@ from database.database_manager import save_alert as save_database_alert
 # Detection tracking
 # ============================================================
 
-syn_attempts = Counter()
-syn_ack_responses = Counter()
+# Store SYN attempts and SYN-ACK responses with timestamps.
+syn_attempts = defaultdict(deque)
+syn_ack_responses = defaultdict(deque)
 syn_anomaly_alerted = set()
 
+# Store port scan observations as (timestamp, destination_port).
 port_scan_tracker = defaultdict(deque)
 port_scan_alerted = set()
 
-icmp_packets = Counter()
+# Store ICMP packet timestamps per source IP.
+icmp_packets = defaultdict(deque)
 icmp_alerted = set()
 
 alerts = []
@@ -72,10 +77,10 @@ def create_alert(
     print()
     print("ALERT:", alert)
 
-    # Save to the security alert log.
+    # Save alert to the log file.
     save_alert(severity, message)
 
-    # Save to SQLite. Existing database and history are preserved.
+    # Save alert to SQLite.
     save_database_alert(
         severity,
         alert_type,
@@ -88,6 +93,16 @@ def create_alert(
 
 
 # ============================================================
+# Time-window helper
+# ============================================================
+
+def remove_expired(observations, cutoff_time):
+    """Remove observations older than the configured time window."""
+    while observations and observations[0] < cutoff_time:
+        observations.popleft()
+
+
+# ============================================================
 # Packet analysis
 # ============================================================
 
@@ -97,6 +112,7 @@ def detect_suspicious(packet):
 
     source_ip = packet[IP].src
     destination_ip = packet[IP].dst
+    current_time = datetime.now()
 
     # ========================================================
     # TCP and port-scan detection
@@ -107,31 +123,45 @@ def detect_suspicious(packet):
         destination_port = int(packet[TCP].dport)
         flags = int(packet[TCP].flags)
 
-        # Initial connection attempt: SYN set, ACK unset.
-        # Ignore SYN-ACK replies and ordinary TCP traffic.
-        is_initial_syn = bool(flags & 0x02) and not bool(flags & 0x10)
+        # Initial SYN: SYN flag set and ACK flag unset.
+        is_initial_syn = (
+            bool(flags & 0x02)
+            and not bool(flags & 0x10)
+        )
 
         if is_initial_syn:
             scan_target = (source_ip, destination_ip)
-            current_time = datetime.now()
 
             observations = port_scan_tracker[scan_target]
+
             cutoff_time = current_time - timedelta(
                 seconds=PORT_SCAN_WINDOW_SECONDS
             )
 
-            # Expire observations outside the rolling time window.
-            while observations and observations[0][0] < cutoff_time:
+            # Remove observations outside the rolling window.
+            while (
+                observations
+                and observations[0][0] < cutoff_time
+            ):
                 observations.popleft()
 
-            # Record destination ports from initial SYN packets only.
-            observations.append((current_time, destination_port))
+            # Check whether this destination port is already tracked.
+            existing_ports = {
+                port for timestamp, port in observations
+            }
+
+            # Record only the first SYN for each unique port.
+            # Repeated SYN packets will not occupy extra entries.
+            if destination_port not in existing_ports:
+                observations.append(
+                    (current_time, destination_port)
+                )
 
             unique_ports = len({
                 port for timestamp, port in observations
             })
 
-            # Permit a future alert after the count falls below threshold.
+            # Allow another alert when the count falls below threshold.
             if unique_ports < PORT_SCAN_THRESHOLD:
                 port_scan_alerted.discard(scan_target)
 
@@ -153,36 +183,56 @@ def detect_suspicious(packet):
                 )
 
         # ====================================================
-        # SYN detection
+        # SYN attempt tracking
         # ====================================================
 
-        # Count initial SYN attempts for SYN-anomaly analysis.
-        if flags & 0x02 and not (flags & 0x10):
+        if is_initial_syn:
             connection = (
                 source_ip,
                 destination_ip,
                 destination_port,
             )
-            syn_attempts[connection] += 1
 
-        # Match SYN-ACK responses with their original connection.
+            syn_attempts[connection].append(current_time)
+
+        # ====================================================
+        # SYN-ACK response tracking
+        # ====================================================
+
         elif (flags & 0x02) and (flags & 0x10):
             original_connection = (
                 destination_ip,
                 source_ip,
                 source_port,
             )
-            syn_ack_responses[original_connection] += 1
+
+            syn_ack_responses[original_connection].append(
+                current_time
+            )
 
     # ========================================================
     # ICMP detection
     # ========================================================
 
     elif ICMP in packet:
-        icmp_packets[source_ip] += 1
-        count = icmp_packets[source_ip]
+        observations = icmp_packets[source_ip]
 
-        # Alert once per source when the threshold is reached.
+        cutoff_time = current_time - timedelta(
+            seconds=ICMP_WINDOW_SECONDS
+        )
+
+        # Expire old ICMP observations.
+        remove_expired(observations, cutoff_time)
+
+        # Record the current packet.
+        observations.append(current_time)
+
+        count = len(observations)
+
+        # Re-arm alert when traffic drops below threshold.
+        if count < ICMP_THRESHOLD:
+            icmp_alerted.discard(source_ip)
+
         if (
             count >= ICMP_THRESHOLD
             and source_ip not in icmp_alerted
@@ -192,7 +242,8 @@ def detect_suspicious(packet):
             create_alert(
                 "MEDIUM",
                 f"High ICMP traffic detected from "
-                f"{source_ip} ({count} ICMP packets)",
+                f"{source_ip} ({count} ICMP packets within "
+                f"{ICMP_WINDOW_SECONDS} seconds)",
                 source_ip,
                 destination_ip,
                 "ICMP Traffic",
@@ -204,12 +255,44 @@ def detect_suspicious(packet):
 # ============================================================
 
 def analyze_syn_anomalies():
-    for connection, syn_count in syn_attempts.items():
-        if syn_count < SYN_THRESHOLD:
+    current_time = datetime.now()
+
+    cutoff_time = current_time - timedelta(
+        seconds=SYN_WINDOW_SECONDS
+    )
+
+    for connection, attempts in list(syn_attempts.items()):
+
+        # Remove expired SYN attempts.
+        remove_expired(attempts, cutoff_time)
+
+        # Remove expired SYN-ACK responses.
+        responses = syn_ack_responses[connection]
+        remove_expired(responses, cutoff_time)
+
+        # If all attempts expired, clear tracking state.
+        if not attempts:
+            syn_attempts.pop(connection, None)
+            syn_ack_responses.pop(connection, None)
+            syn_anomaly_alerted.discard(connection)
             continue
 
-        response_count = syn_ack_responses.get(connection, 0)
-        unanswered_syns = max(syn_count - response_count, 0)
+        syn_count = len(attempts)
+
+        # Limit matched responses to the number of attempts.
+        response_count = min(
+            len(responses),
+            syn_count,
+        )
+
+        if syn_count < SYN_THRESHOLD:
+            syn_anomaly_alerted.discard(connection)
+            continue
+
+        unanswered_syns = max(
+            syn_count - response_count,
+            0,
+        )
 
         response_ratio = (
             response_count / syn_count
@@ -224,7 +307,9 @@ def analyze_syn_anomalies():
         ):
             syn_anomaly_alerted.add(connection)
 
-            source_ip, destination_ip, destination_port = connection
+            source_ip, destination_ip, destination_port = (
+                connection
+            )
 
             create_alert(
                 "MEDIUM",
@@ -239,6 +324,11 @@ def analyze_syn_anomalies():
                 "SYN Anomaly",
             )
 
+    # Remove response tracking entries without active attempts.
+    for connection in list(syn_ack_responses):
+        if connection not in syn_attempts:
+            syn_ack_responses.pop(connection, None)
+
 
 # ============================================================
 # Final analysis
@@ -248,7 +338,23 @@ def finalize_detection():
     print()
     print("Finalizing intrusion detection analysis...")
 
+    # Analyse SYN behaviour using the configured time window.
     analyze_syn_anomalies()
+
+    # Expire old ICMP observations.
+    current_time = datetime.now()
+
+    cutoff_time = current_time - timedelta(
+        seconds=ICMP_WINDOW_SECONDS
+    )
+
+    for source_ip, observations in list(icmp_packets.items()):
+
+        remove_expired(observations, cutoff_time)
+
+        if not observations:
+            icmp_packets.pop(source_ip, None)
+            icmp_alerted.discard(source_ip)
 
     print()
     print("Detection summary:")
