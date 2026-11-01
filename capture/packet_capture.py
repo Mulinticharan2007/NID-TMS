@@ -1,4 +1,5 @@
-﻿from scapy.all import sniff
+
+from scapy.all import sniff
 from datetime import datetime
 from pathlib import Path
 import sys
@@ -6,30 +7,52 @@ import time
 import msvcrt
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-sys.path.append(str(PROJECT_ROOT))
+
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.append(str(PROJECT_ROOT))
 
 from analyzer.traffic_stats import process_packet, save_stats
 from analyzer.intrusion_detector import detect_suspicious, finalize_detection
+from analyzer.ip_behavior import IPBehaviorAnalyzer
 from database.traffic_store import initialize_traffic_table, save_packet
 
 SAVE_INTERVAL = 5
 last_save_time = time.time()
 
+# Initialize the IP behaviour analyzer.
+ip_behavior_analyzer = IPBehaviorAnalyzer()
+
 
 def show_packet(packet):
     global last_save_time
 
-    # Update aggregate traffic statistics
+    # 1. Update aggregate traffic statistics.
     process_packet(packet)
 
-    # Save packet metadata for the dashboard
+    # 2. Save packet metadata for the dashboard.
     try:
         save_packet(packet)
     except Exception as error:
         print(f"Traffic record save error: {error}")
 
-    # Run existing intrusion detection
+    # 3. Run existing intrusion detection.
     detect_suspicious(packet)
+
+    # 4. Run IP-based behaviour analysis.
+    try:
+        new_alerts = ip_behavior_analyzer.process_packet(packet)
+
+        for alert in new_alerts:
+            print(
+                f"[IP BEHAVIOUR ALERT] "
+                f"[{alert['severity']}] "
+                f"{alert['alert_type']} | "
+                f"Source: {alert['source_ip']} | "
+                f"{alert['description']}"
+            )
+
+    except Exception as error:
+        print(f"IP behaviour analysis error: {error}")
 
     timestamp = datetime.now().strftime("%H:%M:%S")
 
@@ -62,6 +85,7 @@ except Exception as error:
 print("Starting continuous network monitoring...")
 print("Traffic statistics: every 5 seconds")
 print("Intrusion detection: enabled")
+print("IP behaviour analysis: enabled")
 print("Press Q to stop monitoring.")
 print()
 
