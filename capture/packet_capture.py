@@ -16,6 +16,8 @@ from analyzer.intrusion_detector import detect_suspicious, finalize_detection
 from analyzer.ip_behavior import IPBehaviorAnalyzer
 from database.traffic_store import initialize_traffic_table, save_packet
 
+
+# Configuration
 SAVE_INTERVAL = 5
 last_save_time = time.time()
 
@@ -54,6 +56,7 @@ def show_packet(packet):
     except Exception as error:
         print(f"IP behaviour analysis error: {error}")
 
+    # 5. Display captured packet information.
     timestamp = datetime.now().strftime("%H:%M:%S")
 
     print(
@@ -62,15 +65,16 @@ def show_packet(packet):
         f"| Size: {len(packet)} bytes"
     )
 
+    # 6. Save traffic statistics every 5 seconds.
     current_time = time.time()
 
     if current_time - last_save_time >= SAVE_INTERVAL:
         save_stats()
         last_save_time = current_time
-
         print(f"[{timestamp}] Traffic statistics updated.")
 
 
+# Start the monitoring application.
 print("=" * 80)
 print("NID-TMS - REAL-TIME NETWORK MONITOR")
 print("=" * 80)
@@ -78,20 +82,25 @@ print("=" * 80)
 try:
     initialize_traffic_table()
     print("Traffic record storage: enabled")
+
 except Exception as error:
     print("Traffic storage initialization error:", error)
     raise
 
 print("Starting continuous network monitoring...")
+print("Network interface: Wi-Fi")
 print("Traffic statistics: every 5 seconds")
 print("Intrusion detection: enabled")
 print("IP behaviour analysis: enabled")
 print("Press Q to stop monitoring.")
 print()
 
+
+# Main monitoring loop.
 try:
     while True:
         sniff(
+            iface="Wi-Fi",
             prn=show_packet,
             timeout=1
         )

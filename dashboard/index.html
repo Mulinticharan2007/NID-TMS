@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -173,16 +173,16 @@ footer { padding:22px 0 5px; color:#7386a2; font-size:11px; line-height:1.7; }
     <div class="brand">NID-<span>TMS</span></div>
     <div class="brand-sub">NETWORK DEFENSE CENTER</div>
     <div class="nav-label">MONITORING</div>
-    <button type="button" class="nav-item active" data-target="overviewSection">■ &nbsp; Security Overview</button>
-    <button type="button" class="nav-item" data-target="trafficSection">➤ &nbsp; Network Traffic</button>
-    <button type="button" class="nav-item" data-target="alertsSection">⚠ &nbsp; Security Alerts</button>
+    <button type="button" class="nav-item active" data-target="overviewSection">[+] Security Overview</button>
+    <button type="button" class="nav-item" data-target="trafficSection">[>] Network Traffic</button>
+    <button type="button" class="nav-item" data-target="alertsSection">[!] Security Alerts</button>
     <div class="nav-label">MANAGEMENT</div>
-    <button type="button" class="nav-item" id="reportsButton">▦ &nbsp; Reports</button>
-    <button type="button" class="nav-item" id="settingsButton">⚙ &nbsp; Settings</button>
+    <button type="button" class="nav-item" id="reportsButton">[#] Reports</button>
+    <button type="button" class="nav-item" id="settingsButton">[*] Settings</button>
     <div class="sidebar-note">
         <strong>Detection engine</strong><br>
         Rule-based monitoring<br>
-        <span style="color:var(--green)">✓ Dashboard ready</span>
+        <span style="color:var(--green)">[OK] Dashboard ready</span>
     </div>
 </aside>
 
@@ -263,6 +263,9 @@ footer { padding:22px 0 5px; color:#7386a2; font-size:11px; line-height:1.7; }
                 <option value="TCP">TCP</option>
                 <option value="UDP">UDP</option>
                 <option value="ICMP">ICMP</option>
+                <option value="ICMPv6">ICMPv6</option>
+                <option value="IPV4">IPv4</option>
+                <option value="IPV6">IPv6</option>
                 <option value="OTHER">OTHER</option>
             </select>
             <button type="button" onclick="loadTraffic()">Refresh Traffic</button>
@@ -289,6 +292,18 @@ footer { padding:22px 0 5px; color:#7386a2; font-size:11px; line-height:1.7; }
         <div class="panel mini-panel">
             <div class="panel-title">Other Packets</div>
             <div class="card-value" id="trafficOTHER">-</div>
+        </div>
+        <div class="panel mini-panel">
+            <div class="panel-title">IPv4 Packets</div>
+            <div class="card-value blue" id="trafficIPv4">-</div>
+        </div>
+        <div class="panel mini-panel">
+            <div class="panel-title">IPv6 Packets</div>
+            <div class="card-value green" id="trafficIPv6">-</div>
+        </div>
+        <div class="panel mini-panel">
+            <div class="panel-title">ICMPv6 Packets</div>
+            <div class="card-value orange" id="trafficICMPv6">-</div>
         </div>
     </div>
 
@@ -670,6 +685,9 @@ async function loadTraffic() {
         byId("trafficUDP").textContent = safeText(stats.udp_packets,0);
         byId("trafficICMP").textContent = safeText(stats.icmp_packets,0);
         byId("trafficOTHER").textContent = safeText(stats.other_packets,0);
+        byId("trafficIPv4").textContent = safeText(stats.ipv4_packets,0);
+        byId("trafficIPv6").textContent = safeText(stats.ipv6_packets,0);
+        byId("trafficICMPv6").textContent = safeText(stats.icmpv6_packets,0);
 
         renderTraffic();
         byId("trafficUpdated").textContent =
@@ -694,7 +712,16 @@ function renderTraffic() {
 
     const filtered = allTraffic.filter(packet => {
         const packetProtocol = safeText(packet.protocol,"OTHER").toUpperCase();
-        const matchesProtocol = protocol === "ALL" || packetProtocol === protocol;
+        const sourceIP = String(packet.source_ip || "");
+        const destinationIP = String(packet.destination_ip || "");
+        const isIPv6 = sourceIP.includes(":") || destinationIP.includes(":");
+        const isIPv4 = (sourceIP !== "" || destinationIP !== "") && !isIPv6;
+
+        const matchesProtocol =
+            protocol === "ALL" ||
+            packetProtocol === protocol.toUpperCase() ||
+            (protocol === "IPV4" && isIPv4) ||
+            (protocol === "IPV6" && isIPv6);
         const searchable = [
             packet.timestamp,packet.source_ip,packet.destination_ip,
             packet.protocol,packet.source_port,packet.destination_port,packet.packet_size
