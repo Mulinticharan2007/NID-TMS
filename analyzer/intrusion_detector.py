@@ -21,6 +21,7 @@ from config.settings import (
 
 from alerts.alert_manager import save_alert
 from database.database_manager import save_alert as save_database_alert
+from analyzer.risk_scoring import calculate_risk_score
 
 
 # ============================================================
@@ -67,6 +68,7 @@ def create_alert(
         correlated_alerts.get(correlation_key, 0) + 1
     )
 
+    # Maintain the cumulative detector risk score.
     if severity == "HIGH":
         risk_score += 10
     elif severity == "MEDIUM":
@@ -74,20 +76,27 @@ def create_alert(
     else:
         risk_score += 1
 
+    # Calculate an independent risk score for this alert.
+    individual_risk = calculate_risk_score(
+        severity,
+        alert_type,
+        message,
+    )
+
     print()
     print("ALERT:", alert)
 
     # Save alert to the log file.
     save_alert(severity, message)
 
-    # Save alert to SQLite.
+    # Save the individual alert risk score to SQLite.
     save_database_alert(
         severity,
         alert_type,
         source_ip,
         destination_ip,
         message,
-        risk_score,
+        individual_risk,
         correlation_key,
     )
 

@@ -1,4 +1,4 @@
-
+﻿
 from pathlib import Path
 import json
 import sqlite3
@@ -6,6 +6,8 @@ from typing import Any
 
 from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse
+
+from analyzer.risk_scoring import calculate_risk_score as _calculate_risk_score
 from database.traffic_store import get_recent_packets
 
 
@@ -112,52 +114,13 @@ def calculate_risk_score(
     alert_type: str,
     description: str,
 ) -> int:
-    """Calculate an explainable heuristic risk score."""
+    """Calculate an individual alert risk score."""
 
-    severity_value = str(severity or "").upper()
-    type_value = str(alert_type or "").upper()
-    description_value = str(description or "").lower()
-
-    # Known test alerts are not treated as real threats.
-    if (
-        type_value == "TEST"
-        or "test" in description_value
-    ):
-        return 0
-
-    base_scores = {
-        "LOW": 25,
-        "MEDIUM": 50,
-        "HIGH": 75,
-        "CRITICAL": 90,
-    }
-
-    score = base_scores.get(severity_value, 20)
-
-    # Add a single bonus for port-scan indicators.
-    if (
-        "port scan" in description_value
-        or "port scan" in type_value.lower()
-    ):
-        score += 10
-
-    # Add a bonus for repeated SYN activity or anomalies.
-    if (
-        "syn" in description_value
-        and any(
-            word in description_value
-            for word in ("attempt", "flood", "anomaly")
-        )
-    ):
-        score += 10
-
-    if "brute force" in description_value:
-        score += 15
-
-    if "malware" in description_value:
-        score += 15
-
-    return min(score, 100)
+    return _calculate_risk_score(
+        severity,
+        alert_type,
+        description,
+    )
 
 
 # --------------------------------------------------

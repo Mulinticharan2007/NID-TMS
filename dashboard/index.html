@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -220,9 +220,9 @@ footer { padding:22px 0 5px; color:#7386a2; font-size:11px; line-height:1.7; }
         <div class="card-foot">Alerts classified as LOW</div>
     </div>
     <div class="card">
-        <div class="card-label">MAXIMUM RECORDED ALERT RISK</div>
+        <div class="card-label">AVERAGE ALERT RISK</div>
         <div class="card-value orange" id="riskScore">-</div>
-        <div class="card-foot">Highest stored alert score, out of 100</div>
+        <div class="card-foot">Average individual alert risk, out of 100</div>
     </div>
 </section>
 
@@ -594,37 +594,51 @@ async function loadRiskScore() {
     }
 }
 
-function renderAlerts() {
-    const table = byId("alertsTable");
+function getFilteredAlerts() {
     const search = byId("searchInput").value.trim().toLowerCase();
     const filter = byId("severityFilter").value;
 
-    const filtered = allAlerts.filter(alert => {
-        const severity = safeText(alert.severity,"LOW").toUpperCase();
+    return allAlerts.filter(alert => {
+        const severity = safeText(alert.severity, "LOW").toUpperCase();
         const matchesSeverity = filter === "ALL" || severity === filter;
+
         const searchable = [
-            alert.id,alert.timestamp,alert.severity,alert.alert_type,
-            alert.source_ip,alert.destination_ip,alert.description,alert.risk
+            alert.id,
+            alert.timestamp,
+            alert.severity,
+            alert.alert_type,
+            alert.source_ip,
+            alert.destination_ip,
+            alert.description,
+            alert.risk
         ].map(value => safeText(value)).join(" ").toLowerCase();
+
         return matchesSeverity && searchable.includes(search);
     });
+}
+
+function renderAlerts() {
+    const table = byId("alertsTable");
+    const filtered = getFilteredAlerts();
 
     table.replaceChildren();
 
     if (!filtered.length) {
-        setMessage(table,"No alerts match your search or filter.");
+        setMessage(table, "No alerts match your search or filter.");
     } else {
         filtered.forEach(alert => {
             const row = document.createElement("tr");
+
             const timeCell = document.createElement("td");
-            timeCell.textContent = "#" + safeText(alert.id) + "\n" + safeText(alert.timestamp);
+            timeCell.textContent =
+                "#" + safeText(alert.id) + "\n" + safeText(alert.timestamp);
             timeCell.style.whiteSpace = "pre-line";
             row.appendChild(timeCell);
 
             const severityCell = document.createElement("td");
             const badge = document.createElement("span");
             badge.className = "badge " + severityClass(alert.severity);
-            badge.textContent = safeText(alert.severity,"LOW").toUpperCase();
+            badge.textContent = safeText(alert.severity, "LOW").toUpperCase();
             severityCell.appendChild(badge);
             row.appendChild(severityCell);
 
@@ -633,6 +647,7 @@ function renderAlerts() {
             row.appendChild(typeCell);
 
             const ips = getAlertIPs(alert);
+
             const sourceCell = document.createElement("td");
             sourceCell.className = "ip";
             sourceCell.textContent = ips.source;
@@ -650,10 +665,13 @@ function renderAlerts() {
 
             const riskCell = document.createElement("td");
             riskCell.className = "risk";
-            const risk = Number(alert.risk);
-            riskCell.textContent = Number.isFinite(risk) ? risk + "/100" : "N/A";
-            row.appendChild(riskCell);
 
+            const risk = Number(alert.risk);
+            riskCell.textContent = Number.isFinite(risk)
+                ? risk + "/100"
+                : "N/A";
+
+            row.appendChild(riskCell);
             table.appendChild(row);
         });
     }
@@ -757,32 +775,49 @@ function downloadCSV() {
         return;
     }
 
+    const filtered = getFilteredAlerts();
+
+    if (!filtered.length) {
+        alert("No matching alerts to export.");
+        return;
+    }
+
     const columns = [
-        "id","timestamp","severity","alert_type",
-        "source_ip","destination_ip","description","risk"
+        "id",
+        "timestamp",
+        "severity",
+        "alert_type",
+        "source_ip",
+        "destination_ip",
+        "description",
+        "risk"
     ];
 
     const escapeCSV = value =>
-        '"' + safeText(value,"").replace(/"/g,'""') + '"';
+        '"' + safeText(value, "").replace(/"/g, '""') + '"';
 
     const lines = [
         columns.join(","),
-        ...allAlerts.map(alert =>
+        ...filtered.map(alert =>
             columns.map(column => escapeCSV(alert[column])).join(",")
         )
     ];
 
     const blob = new Blob(["\uFEFF" + lines.join("\r\n")], {
-        type:"text/csv;charset=utf-8;"
+        type: "text/csv;charset=utf-8;"
     });
+
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
+
     link.href = url;
     link.download = "nid-tms-security-alerts.csv";
+
     document.body.appendChild(link);
     link.click();
     link.remove();
-    setTimeout(() => URL.revokeObjectURL(url),1000);
+
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 async function refreshDashboard() {
