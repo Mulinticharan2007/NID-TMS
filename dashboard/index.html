@@ -305,8 +305,37 @@ footer { padding:22px 0 5px; color:#7386a2; font-size:11px; line-height:1.7; }
             <div class="panel-title">ICMPv6 Packets</div>
             <div class="card-value orange" id="trafficICMPv6">-</div>
         </div>
+        <div class="panel mini-panel">
+            <div class="panel-title">Total Data (Bytes)</div>
+            <div class="card-value blue" id="trafficBytes">-</div>
+        </div>
     </div>
 
+    <section class="panel" id="lifetimeTrafficSection">
+        <div class="panel-head">
+            <div>
+                <div class="panel-title">Lifetime Network Statistics</div>
+                <div class="panel-sub">Cumulative traffic records stored in SQLite across capture sessions</div>
+            </div>
+        </div>
+        <div class="bottom-grid" style="padding:18px;margin-bottom:0">
+            <div class="panel mini-panel">
+                <div class="panel-title">Packet Statistics</div>
+                <div class="stat-row"><span>Total Packets</span><strong id="lifetimeTotalPackets">-</strong></div>
+                <div class="stat-row"><span>IPv4 Packets</span><strong id="lifetimeIPv4">-</strong></div>
+                <div class="stat-row"><span>IPv6 Packets</span><strong id="lifetimeIPv6">-</strong></div>
+                <div class="stat-row"><span>TCP Packets</span><strong id="lifetimeTCP">-</strong></div>
+                <div class="stat-row"><span>UDP Packets</span><strong id="lifetimeUDP">-</strong></div>
+            </div>
+            <div class="panel mini-panel">
+                <div class="panel-title">Protocol and Data Statistics</div>
+                <div class="stat-row"><span>ICMP Packets</span><strong id="lifetimeICMP">-</strong></div>
+                <div class="stat-row"><span>ICMPv6 Packets</span><strong id="lifetimeICMPv6">-</strong></div>
+                <div class="stat-row"><span>Other Packets</span><strong id="lifetimeOther">-</strong></div>
+                <div class="stat-row"><span>Total Data (Bytes)</span><strong id="lifetimeBytes">-</strong></div>
+            </div>
+        </div>
+    </section>
     <div class="table-wrap">
         <table>
             <thead><tr>
@@ -697,6 +726,19 @@ async function loadTraffic() {
         trafficLoaded = true;
 
         const stats = data.stats || {};
+        const lifetime = data.lifetime_traffic || {};
+
+        byId("trafficBytes").textContent = safeText(stats.total_bytes, 0);
+
+        byId("lifetimeTotalPackets").textContent = safeText(lifetime.total_packets, 0);
+        byId("lifetimeIPv4").textContent = safeText(lifetime.ipv4_packets, 0);
+        byId("lifetimeIPv6").textContent = safeText(lifetime.ipv6_packets, 0);
+        byId("lifetimeTCP").textContent = safeText(lifetime.tcp_packets, 0);
+        byId("lifetimeUDP").textContent = safeText(lifetime.udp_packets, 0);
+        byId("lifetimeICMP").textContent = safeText(lifetime.icmp_packets, 0);
+        byId("lifetimeICMPv6").textContent = safeText(lifetime.icmpv6_packets, 0);
+        byId("lifetimeOther").textContent = safeText(lifetime.other_packets, 0);
+        byId("lifetimeBytes").textContent = safeText(lifetime.total_bytes, 0);
         byId("trafficTotal").textContent =
             safeText(stats.total_packets, data.total ?? allTraffic.length);
         byId("trafficTCP").textContent = safeText(stats.tcp_packets,0);

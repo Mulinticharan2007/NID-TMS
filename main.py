@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse
 
 from analyzer.risk_scoring import calculate_risk_score as _calculate_risk_score
+from analyzer.traffic_stats import get_stats as get_lifetime_traffic_stats
 from database.traffic_store import get_recent_packets
 
 
@@ -184,14 +185,22 @@ def get_traffic() -> list[dict[str, Any]]:
     ))
 
 
+# --------------------------------------------------
+# Traffic statistics
+# --------------------------------------------------
+
 def load_traffic_stats() -> dict[str, int]:
-    """Read totals saved by analyzer/traffic_stats.py."""
+    """Read saved current-session packet-capture statistics."""
 
     stats = {
         "total_packets": 0,
+        "ipv4_packets": 0,
+        "ipv6_packets": 0,
         "tcp_packets": 0,
         "udp_packets": 0,
         "icmp_packets": 0,
+        "icmpv6_packets": 0,
+        "other_packets": 0,
         "total_bytes": 0,
     }
 
@@ -219,6 +228,28 @@ def load_traffic_stats() -> dict[str, int]:
         pass
 
     return stats
+
+
+def load_lifetime_traffic_stats() -> dict[str, int]:
+    """Calculate lifetime traffic totals from SQLite."""
+
+    try:
+        return get_lifetime_traffic_stats()
+
+    except (sqlite3.Error, OSError) as error:
+        print(f"Lifetime traffic statistics error: {error}")
+
+        return {
+            "total_packets": 0,
+            "ipv4_packets": 0,
+            "ipv6_packets": 0,
+            "tcp_packets": 0,
+            "udp_packets": 0,
+            "icmp_packets": 0,
+            "icmpv6_packets": 0,
+            "other_packets": 0,
+            "total_bytes": 0,
+        }
 
 
 # --------------------------------------------------
@@ -272,7 +303,7 @@ def alerts_endpoint():
 
 @app.get("/traffic")
 def traffic_endpoint():
-    """Return recent packet metadata and current capture totals."""
+    """Return recent packets, session totals, and lifetime totals."""
 
     records = get_recent_packets(100)
 
@@ -280,12 +311,13 @@ def traffic_endpoint():
         "total": len(records),
         "traffic": records,
         "stats": load_traffic_stats(),
+        "lifetime_traffic": load_lifetime_traffic_stats(),
     }
 
 
 @app.get("/stats")
 def stats():
-    """Return alert summaries and saved packet-capture totals."""
+    """Return alert summaries and session/lifetime traffic totals."""
 
     alert_records = get_alerts()
 
@@ -318,6 +350,7 @@ def stats():
     )
 
     traffic_stats = load_traffic_stats()
+    lifetime_traffic = load_lifetime_traffic_stats()
 
     return {
         "total_alerts": len(alert_records),
@@ -327,10 +360,11 @@ def stats():
         "critical_alerts": severity_counts["critical"],
         "risk_score": average_risk,
         **traffic_stats,
+        "lifetime_traffic": lifetime_traffic,
     }
 
 
 # --------------------------------------------------
 # Run with:
-# python -m uvicorn main:app --host 127.0.0.1 --port 8001
+# python -m uvicorn main:app --host 127.0.0.1 --port 8000
 # --------------------------------------------------

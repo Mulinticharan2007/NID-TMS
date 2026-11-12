@@ -1,3 +1,4 @@
+
 from pathlib import Path
 
 
@@ -16,15 +17,21 @@ ALERT_FILE = BASE_DIR / "alerts" / "security_alerts.log"
 # Monitoring
 CAPTURE_TIMEOUT = 10
 
+# Network interface used for packet capture
+NETWORK_INTERFACE = "MediaTek Wi-Fi 6 MT7921 Wireless LAN Card"
+
 
 # Detection thresholds
 PORT_SCAN_THRESHOLD = 10
 ICMP_THRESHOLD = 20
 SYN_THRESHOLD = 10
 SUSPICIOUS_CONNECTION_THRESHOLD = 10
+
 PORT_SCAN_WINDOW_SECONDS = 10
 ICMP_WINDOW_SECONDS = 10
 SYN_WINDOW_SECONDS = 10
+
+
 # IP Behaviour Analysis
 IP_BEHAVIOR_WINDOW_SECONDS = 10
 IP_PACKET_RATE_THRESHOLD = 100

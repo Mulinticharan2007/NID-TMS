@@ -2,7 +2,7 @@
 from collections import defaultdict, deque
 from datetime import datetime, timedelta
 
-from scapy.all import IP, TCP, UDP
+from scapy.all import IP, TCP
 
 from config.settings import (
     IP_BEHAVIOR_WINDOW_SECONDS,
@@ -17,7 +17,7 @@ from database.database_manager import save_alert as save_database_alert
 
 
 class IPBehaviorAnalyzer:
-    """Detect unusual packet rates, port scans and host scans by source IP."""
+    """Detect unusual packet rates, TCP port scans and host scans by source IP."""
 
     def __init__(
         self,
@@ -53,12 +53,19 @@ class IPBehaviorAnalyzer:
             self.observations.pop(source_ip, None)
 
     def _get_destination_port(self, packet):
+        """Return the destination port only for initial TCP SYN packets."""
+
         if TCP in packet:
-            return int(packet[TCP].dport)
+            flags = int(packet[TCP].flags)
 
-        if UDP in packet:
-            return int(packet[UDP].dport)
+            is_syn = bool(flags & 0x02)
+            is_ack = bool(flags & 0x10)
 
+            # Ignore SYN-ACK responses and established TCP traffic.
+            if is_syn and not is_ack:
+                return int(packet[TCP].dport)
+
+        # UDP scanning is not classified by this TCP detector.
         return None
 
     def _send_alert(
@@ -90,6 +97,7 @@ class IPBehaviorAnalyzer:
             "description": description,
             "risk_score": risk_score,
         }
+
         self.generated_alerts.append(alert_data)
 
         save_log_alert(severity, description)
@@ -128,9 +136,11 @@ class IPBehaviorAnalyzer:
         events = self.observations[source_ip]
 
         packet_count = len(events)
+
         unique_ports = {
             port for _, _, port in events if port is not None
         }
+
         unique_destinations = {
             destination for _, destination, _ in events
         }
@@ -153,7 +163,7 @@ class IPBehaviorAnalyzer:
                 current_time,
             )
 
-        # 2. Unique destination-port detection.
+        # 2. TCP SYN-based destination-port detection.
         if len(unique_ports) >= self.unique_port_threshold:
             self._send_alert(
                 "HIGH",
@@ -161,7 +171,7 @@ class IPBehaviorAnalyzer:
                 source_ip,
                 destination_ip,
                 (
-                    f"Possible port scanning detected from {source_ip}: "
+                    f"Possible TCP port scanning detected from {source_ip}: "
                     f"{len(unique_ports)} unique destination ports "
                     f"within {self.window_seconds} seconds"
                 ),
