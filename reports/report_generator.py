@@ -1,7 +1,19 @@
-from pathlib import Path
+﻿
+from collections import Counter
 from datetime import datetime
-import json
-import re
+from pathlib import Path
+import sqlite3
+import sys
+
+# Add project root so sibling packages can be imported.
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from analyzer.risk_scoring import calculate_risk_score
+from analyzer.traffic_stats import load_stats, get_stats
+from config.settings import DATABASE_FILE
 
 
 # ============================================================
@@ -9,152 +21,201 @@ import re
 # ============================================================
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-
-TRAFFIC_STATS_FILE = (
-    PROJECT_ROOT
-    / "database"
-    / "traffic_stats.json"
-)
-
-ALERTS_FILE = (
-    PROJECT_ROOT
-    / "alerts"
-    / "security_alerts.log"
-)
-
 REPORTS_DIR = PROJECT_ROOT / "reports"
+REPORT_FILE = REPORTS_DIR / "nid_tms_security_report.txt"
+
+TRAFFIC_KEYS = (
+    "total_packets",
+    "ipv4_packets",
+    "ipv6_packets",
+    "tcp_packets",
+    "udp_packets",
+    "icmp_packets",
+    "icmpv6_packets",
+    "other_packets",
+    "total_bytes",
+)
 
 
 # ============================================================
-# Read traffic statistics
+# Traffic statistics
 # ============================================================
 
-def load_traffic_stats():
+def load_session_traffic():
+    """Load packet statistics for the current capture session."""
 
-    if not TRAFFIC_STATS_FILE.exists():
-
+    try:
+        stats = load_stats()
         return {
-            "total_packets": 0,
-            "tcp_packets": 0,
-            "udp_packets": 0,
-            "icmp_packets": 0,
-            "total_bytes": 0
+            key: int(stats.get(key, 0) or 0)
+            for key in TRAFFIC_KEYS
         }
 
-    with open(
-        TRAFFIC_STATS_FILE,
-        "r",
-        encoding="utf-8"
-    ) as file:
+    except (OSError, ValueError, TypeError) as error:
+        print(f"Warning: Could not load session traffic: {error}")
+        return {key: 0 for key in TRAFFIC_KEYS}
 
-        return json.load(file)
+
+def load_lifetime_traffic():
+    """Load lifetime traffic statistics from SQLite."""
+
+    try:
+        stats = get_stats()
+        return {
+            key: int(stats.get(key, 0) or 0)
+            for key in TRAFFIC_KEYS
+        }
+
+    except (sqlite3.Error, OSError, ValueError, TypeError) as error:
+        print(f"Warning: Could not load lifetime traffic: {error}")
+        return {key: 0 for key in TRAFFIC_KEYS}
 
 
 # ============================================================
-# Read alerts
+# Alert records
 # ============================================================
 
 def load_alerts():
+    """Load alerts from SQLite and recalculate their risk scores."""
+
+    if not DATABASE_FILE.exists():
+        print("Warning: Alert database does not exist.")
+        return []
+
+    query = """
+        SELECT
+            id,
+            timestamp,
+            severity,
+            alert_type,
+            source_ip,
+            destination_ip,
+            description
+        FROM alerts
+        ORDER BY id DESC
+    """
+
+    try:
+        database_uri = (
+            f"file:{DATABASE_FILE.as_posix()}?mode=ro"
+        )
+
+        with sqlite3.connect(
+            database_uri,
+            uri=True,
+            timeout=10
+        ) as connection:
+
+            rows = connection.execute(query).fetchall()
+
+    except sqlite3.Error as error:
+        print(f"Warning: Could not read alerts: {error}")
+        return []
 
     alerts = []
 
-    if not ALERTS_FILE.exists():
-        return alerts
+    for row in rows:
+        (
+            alert_id,
+            timestamp,
+            severity,
+            alert_type,
+            source_ip,
+            destination_ip,
+            description,
+        ) = row
 
-    with open(
-        ALERTS_FILE,
-        "r",
-        encoding="utf-8"
-    ) as file:
+        severity = str(severity or "LOW").upper()
+        alert_type = str(alert_type or "UNKNOWN")
+        description = str(description or "")
 
-        lines = [
-            line.strip()
-            for line in file
-            if line.strip()
-        ]
-
-    for line in lines:
-
-        match = re.match(
-            r"\[(.*?)\]\s+\[(.*?)\]\s+(.*)",
-            line
+        # Use the same risk-scoring function as the dashboard.
+        risk = calculate_risk_score(
+            severity,
+            alert_type,
+            description,
         )
 
-        if not match:
-            continue
-
-        timestamp = match.group(1)
-        severity = match.group(2).upper()
-        description = match.group(3)
-
-        if "Port Scan" in description:
-            alert_type = "Port Scan"
-
-        elif "SYN" in description:
-            alert_type = "SYN Anomaly"
-
-        elif "ICMP" in description:
-            alert_type = "ICMP Traffic"
-
-        elif "test" in description.lower():
-            alert_type = "System Test"
-
-        else:
-            alert_type = "Other"
-
         alerts.append({
-            "timestamp": timestamp,
+            "id": alert_id,
+            "timestamp": timestamp or "",
             "severity": severity,
             "alert_type": alert_type,
-            "description": description
+            "source_ip": source_ip or "-",
+            "destination_ip": destination_ip or "-",
+            "description": description,
+            "risk": risk,
         })
 
     return alerts
 
 
 # ============================================================
-# Generate report
+# Formatting helpers
+# ============================================================
+
+def format_traffic_section(title, traffic):
+    """Format one traffic-statistics section."""
+
+    return f"""
+{title}
+{'-' * len(title)}
+
+Total Packets : {traffic['total_packets']}
+IPv4 Packets  : {traffic['ipv4_packets']}
+IPv6 Packets  : {traffic['ipv6_packets']}
+TCP Packets   : {traffic['tcp_packets']}
+UDP Packets   : {traffic['udp_packets']}
+ICMP Packets  : {traffic['icmp_packets']}
+ICMPv6 Packets: {traffic['icmpv6_packets']}
+Other Packets : {traffic['other_packets']}
+Total Bytes   : {traffic['total_bytes']:,}
+"""
+
+
+# ============================================================
+# Generate security report
 # ============================================================
 
 def generate_report():
 
-    traffic = load_traffic_stats()
+    session_traffic = load_session_traffic()
+    lifetime_traffic = load_lifetime_traffic()
     alerts = load_alerts()
 
     total_alerts = len(alerts)
 
-    high_alerts = sum(
-        alert["severity"] == "HIGH"
-        for alert in alerts
+    # Match the dashboard's severity-counting logic.
+    severity_counts = {
+        "HIGH": 0,
+        "MEDIUM": 0,
+        "LOW": 0,
+        "CRITICAL": 0,
+    }
+
+    risk_values = []
+
+    for alert in alerts:
+        severity = alert["severity"]
+
+        if severity in severity_counts:
+            severity_counts[severity] += 1
+
+        try:
+            risk_values.append(float(alert["risk"]))
+        except (TypeError, ValueError, OverflowError):
+            pass
+
+    # Match the dashboard's average-risk calculation.
+    average_risk = (
+        round(sum(risk_values) / len(risk_values))
+        if risk_values
+        else 0
     )
 
-    medium_alerts = sum(
-        alert["severity"] == "MEDIUM"
-        for alert in alerts
-    )
-
-    low_alerts = sum(
-        alert["severity"] == "LOW"
-        for alert in alerts
-    )
-
-    port_scan_alerts = sum(
-        alert["alert_type"] == "Port Scan"
-        for alert in alerts
-    )
-
-    syn_alerts = sum(
-        alert["alert_type"] == "SYN Anomaly"
-        for alert in alerts
-    )
-
-    icmp_alerts = sum(
-        alert["alert_type"] == "ICMP Traffic"
-        for alert in alerts
-    )
-
-    test_alerts = sum(
-        alert["alert_type"] == "System Test"
+    # Preserve original alert types from SQLite.
+    alert_type_counts = Counter(
+        alert["alert_type"]
         for alert in alerts
     )
 
@@ -168,108 +229,124 @@ NID-TMS SECURITY REPORT
 Network Intrusion Detection & Real-Time Traffic Monitoring
 ============================================================
 
-Report Generated:
-{generated_time}
+Report Generated: {generated_time}
 
 
-------------------------------------------------------------
-NETWORK TRAFFIC STATISTICS
-------------------------------------------------------------
+============================================================
+1. CURRENT SESSION TRAFFIC STATISTICS
+============================================================
+"""
 
-Total Packets : {traffic.get("total_packets", 0)}
-TCP Packets   : {traffic.get("tcp_packets", 0)}
-UDP Packets   : {traffic.get("udp_packets", 0)}
-ICMP Packets  : {traffic.get("icmp_packets", 0)}
-Total Bytes   : {traffic.get("total_bytes", 0)}
+    report += format_traffic_section(
+        "Current Capture Session",
+        session_traffic,
+    )
+
+    report += """
+============================================================
+2. LIFETIME NETWORK TRAFFIC STATISTICS
+============================================================
+"""
+
+    report += format_traffic_section(
+        "Lifetime Database Statistics",
+        lifetime_traffic,
+    )
+
+    report += f"""
+============================================================
+3. SECURITY ALERT SUMMARY
+============================================================
+
+Total Alerts       : {total_alerts}
+HIGH Severity      : {severity_counts['HIGH']}
+MEDIUM Severity    : {severity_counts['MEDIUM']}
+LOW Severity       : {severity_counts['LOW']}
+CRITICAL Severity  : {severity_counts['CRITICAL']}
+
+Average Alert Risk : {average_risk}/100
 
 
-------------------------------------------------------------
-SECURITY ALERT SUMMARY
-------------------------------------------------------------
-
-Total Alerts  : {total_alerts}
-
-High Severity   : {high_alerts}
-Medium Severity : {medium_alerts}
-Low Severity    : {low_alerts}
-
-
-------------------------------------------------------------
-ALERT TYPE SUMMARY
-------------------------------------------------------------
-
-Port Scan Alerts  : {port_scan_alerts}
-SYN Anomaly Alerts: {syn_alerts}
-ICMP Alerts       : {icmp_alerts}
-System Test Alerts: {test_alerts}
-
-
-------------------------------------------------------------
-RECENT ALERTS
-------------------------------------------------------------
+============================================================
+4. ALERT TYPE SUMMARY
+============================================================
 
 """
 
-    recent_alerts = alerts[-10:]
+    if alert_type_counts:
+        for alert_type, count in sorted(
+            alert_type_counts.items(),
+            key=lambda item: (-item[1], item[0].lower()),
+        ):
+            report += f"{alert_type:<25}: {count}\n"
+    else:
+        report += "No alert types recorded.\n"
+
+    report += """
+============================================================
+5. TEN MOST RECENT ALERTS
+============================================================
+
+"""
+
+    recent_alerts = alerts[:10]
 
     if not recent_alerts:
-
         report += "No alerts recorded.\n"
 
     else:
-
         for index, alert in enumerate(
             recent_alerts,
-            start=1
+            start=1,
         ):
-
             report += (
-                f"{index}. "
-                f"[{alert['timestamp']}] "
-                f"[{alert['severity']}] "
-                f"{alert['alert_type']} - "
-                f"{alert['description']}\n"
+                f"{index}. Alert ID: {alert['id']}\n"
+                f"   Timestamp   : {alert['timestamp']}\n"
+                f"   Severity    : {alert['severity']}\n"
+                f"   Alert Type  : {alert['alert_type']}\n"
+                f"   Source IP   : {alert['source_ip']}\n"
+                f"   Dest. IP    : {alert['destination_ip']}\n"
+                f"   Risk Score  : {alert['risk']}/100\n"
+                f"   Description : {alert['description']}\n\n"
             )
 
-
     report += """
+============================================================
+6. REPORT NOTES
+============================================================
 
-------------------------------------------------------------
+- Current-session traffic represents the active or most
+  recently saved capture session.
+- Lifetime traffic is calculated from stored SQLite records.
+- Alert risk scores are recalculated using the shared
+  NID-TMS risk-scoring function.
+- Test alerts are included in alert totals and averages.
+- An alert indicates suspicious activity for investigation;
+  it does not by itself prove that an attack occurred.
+
+============================================================
 END OF REPORT
-------------------------------------------------------------
+============================================================
 """
 
-
+    # Save the generated report.
     REPORTS_DIR.mkdir(
         parents=True,
-        exist_ok=True
+        exist_ok=True,
     )
 
-    report_file = (
-        REPORTS_DIR
-        / "nid_tms_security_report.txt"
-    )
-
-    with open(
-        report_file,
+    with REPORT_FILE.open(
         "w",
-        encoding="utf-8"
+        encoding="utf-8",
     ) as file:
-
         file.write(report)
 
     print("=" * 60)
     print("NID-TMS SECURITY REPORT")
     print("=" * 60)
-
-    print()
     print(report)
-
-    print(
-        "Report saved to:"
-    )
-
-    print(report_file)
+    print("Report saved to:")
+    print(REPORT_FILE)
 
 
 # ============================================================
@@ -277,5 +354,5 @@ END OF REPORT
 # ============================================================
 
 if __name__ == "__main__":
-
     generate_report()
+
