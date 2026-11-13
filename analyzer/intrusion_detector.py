@@ -350,20 +350,50 @@ def finalize_detection():
     # Analyse SYN behaviour using the configured time window.
     analyze_syn_anomalies()
 
-    # Expire old ICMP observations.
+    # Get the current time for cleanup operations.
     current_time = datetime.now()
 
-    cutoff_time = current_time - timedelta(
+    # --------------------------------------------------------
+    # Expire old port-scan observations.
+    # --------------------------------------------------------
+
+    port_scan_cutoff = current_time - timedelta(
+        seconds=PORT_SCAN_WINDOW_SECONDS
+    )
+
+    for connection, observations in list(port_scan_tracker.items()):
+
+        # Port-scan observations contain (timestamp, destination_port).
+        while (
+            observations
+            and observations[0][0] < port_scan_cutoff
+        ):
+            observations.popleft()
+
+        # Remove empty tracking entries and their alert cooldowns.
+        if not observations:
+            port_scan_tracker.pop(connection, None)
+            port_scan_alerted.discard(connection)
+
+    # --------------------------------------------------------
+    # Expire old ICMP observations.
+    # --------------------------------------------------------
+
+    icmp_cutoff = current_time - timedelta(
         seconds=ICMP_WINDOW_SECONDS
     )
 
     for source_ip, observations in list(icmp_packets.items()):
 
-        remove_expired(observations, cutoff_time)
+        remove_expired(observations, icmp_cutoff)
 
         if not observations:
             icmp_packets.pop(source_ip, None)
             icmp_alerted.discard(source_ip)
+
+    # --------------------------------------------------------
+    # Print detection summary.
+    # --------------------------------------------------------
 
     print()
     print("Detection summary:")
