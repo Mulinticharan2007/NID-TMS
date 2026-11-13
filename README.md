@@ -1,338 +1,301 @@
-\# NID-TMS
 
+# Network Intrusion Detection & Real-Time Traffic Monitoring System (NID-TMS)
 
+A Python-based cybersecurity project that monitors network traffic, detects suspicious network behaviour, generates security alerts, and displays network activity through a real-time web dashboard.
 
-\## Network Intrusion Detection \& Real-Time Traffic Monitoring System
+## Project Overview
 
+The Network Intrusion Detection & Real-Time Traffic Monitoring System (NID-TMS) is designed to help identify potentially suspicious network activity through packet monitoring and rule-based intrusion detection.
 
+The system captures network packets, analyzes traffic patterns, detects suspicious behaviour, stores alerts and traffic records in an SQLite database, and presents security information through a web dashboard.
 
-NID-TMS is a Python-based cybersecurity project designed to monitor network traffic, analyze packets, identify suspicious activity, and generate security alerts through a web-based dashboard.
+It also generates text and PDF security reports.
 
+## Objectives
 
+- Capture and monitor network traffic.
+- Analyze TCP, UDP, ICMP, IPv4 and IPv6 packets.
+- Detect suspicious activities such as port scans and abnormal SYN traffic.
+- Monitor unusual IP behaviour.
+- Generate security alerts with severity levels and risk scores.
+- Store network traffic and alerts in an SQLite database.
+- Display monitoring results through a web dashboard.
+- Generate downloadable text and PDF security reports.
+- Test important detection and reporting functionality using automated tests.
 
-The project demonstrates fundamental network security monitoring and intrusion detection concepts in a practical environment.
+## Technologies Used
 
+| Technology | Purpose |
+|---|---|
+| Python | Core programming language |
+| Scapy | Network packet capture and analysis |
+| FastAPI | Backend API |
+| Uvicorn | ASGI server |
+| SQLite | Database |
+| HTML | Dashboard structure |
+| CSS | Dashboard styling |
+| JavaScript | Dashboard functionality |
+| ReportLab | PDF report generation |
+| pypdf | PDF content verification in tests |
+| pytest | Automated testing |
+| Git & GitHub | Version control |
 
+## Features
 
-\## Objectives
+### 1. Network Packet Capture
+- Captures network packets using Scapy.
+- Extracts source and destination IP addresses.
+- Identifies network protocols.
+- Records source and destination ports when available.
+- Records packet sizes and timestamps.
 
+### 2. Intrusion Detection
+- Port scan detection.
+- Suspicious SYN traffic detection.
+- ICMP traffic monitoring.
+- IP behaviour monitoring.
+- Detection of unusual packet rates.
+- Rule-based suspicious activity identification.
 
+### 3. Security Alert Management
+- Generates security alerts.
+- Supports LOW, MEDIUM, HIGH and CRITICAL severity levels.
+- Calculates risk scores.
+- Stores alerts in SQLite.
+- Tracks alert categories and timestamps.
 
-\* Capture and analyze network packets.
+### 4. Traffic Monitoring
+- Displays TCP, UDP and ICMP packet statistics.
+- Tracks IPv4 and IPv6 traffic.
+- Displays total packets and bytes.
+- Maintains session and lifetime traffic statistics.
 
-\* Monitor TCP, UDP, and ICMP traffic.
+### 5. Security Dashboard
+- Real-time network monitoring interface.
+- Security overview cards.
+- Traffic statistics.
+- Security alert table.
+- Alert search and filtering.
+- CSV alert export.
+- Automatic dashboard refresh.
 
-\* Detect suspicious network behavior.
+### 6. Security Reports
+- Generates text-based security reports.
+- Generates PDF security reports.
+- Includes alert summaries and risk scores.
+- Includes session and lifetime traffic statistics.
+- Displays recent security alerts.
 
-\* Identify potential port scanning and SYN-related anomalies.
+### 7. Automated Testing
+- Tests intrusion detection functionality.
+- Tests port scan detection.
+- Tests SYN alert handling.
+- Tests IP behaviour detection.
+- Tests traffic statistics.
+- Tests PDF report generation.
 
-\* Generate and manage security alerts.
-
-\* Display traffic statistics and alerts through a web dashboard.
-
-\* Generate security reports for analysis.
-
-
-
-\## Technologies Used
-
-
-
-| Technology            | Purpose                                |
-
-| --------------------- | -------------------------------------- |
-
-| Python                | Core application and detection logic   |
-
-| Scapy                 | Network packet capture and analysis    |
-
-| FastAPI               | Web API and dashboard backend          |
-
-| Uvicorn               | ASGI server                            |
-
-| SQLite                | Persistent storage for security alerts |
-
-| HTML, CSS, JavaScript | Interactive dashboard                  |
-
-| Git and GitHub        | Version control and project hosting    |
-
-
-
-\## Features
-
-
-
-\* \*\*Packet Capture:\*\* Capture network packets using Scapy.
-
-\* \*\*Traffic Monitoring:\*\* Track packet counts and traffic volume.
-
-\* \*\*Protocol Analysis:\*\* Monitor TCP, UDP, and ICMP traffic.
-
-\* \*\*Intrusion Detection:\*\* Identify potential port scans and suspicious SYN activity.
-
-\* \*\*Security Alerts:\*\* Record and manage detected events.
-
-\* \*\*Web Dashboard:\*\* View network statistics and security alerts.
-
-\* \*\*Report Generation:\*\* Generate a text-based security report.
-
-\* \*\*Automated Refresh:\*\* Refresh dashboard information periodically.
-
-\* \*\*Unit Testing:\*\* Test traffic-statistics calculations using simulated packets.
-
-
-
-\## Project Structure
-
-
+## Project Structure
 
 ```text
-
 NID-TMS/
-
+│
 ├── alerts/
-
-│   └── alert\_manager.py
-
+│   └── alert_manager.py
+│
 ├── analyzer/
-
-│   ├── intrusion\_detector.py
-
-│   ├── traffic\_analyzer.py
-
-│   └── traffic\_stats.py
-
+│   ├── intrusion_detector.py
+│   ├── risk_scoring.py
+│   ├── traffic_analyzer.py
+│   └── traffic_stats.py
+│
 ├── capture/
-
-│   └── packet\_capture.py
-
+│   └── packet_capture.py
+│
 ├── config/
-
 │   └── settings.py
-
+│
 ├── dashboard/
-
 │   ├── app.py
-
 │   └── index.html
-
+│
 ├── database/
-
-│   └── database\_manager.py
-
+│   └── database_manager.py
+│
 ├── reports/
-
-│   └── report\_generator.py
-
+│   ├── report_generator.py
+│   ├── pdf_report_generator.py
+│   ├── nid_tms_security_report.txt
+│   └── nid_tms_security_report.pdf
+│
 ├── tests/
-
-│   ├── test\_system.py
-
-│   └── test\_traffic\_stats.py
-
+│   ├── test_detection_time_windows.py
+│   ├── test_ip_behavior.py
+│   ├── test_pdf_report_generator.py
+│   ├── test_persistence_manual.py
+│   ├── test_port_scan_detection.py
+│   ├── test_syn_alert_guard.py
+│   ├── test_system.py
+│   └── test_traffic_stats.py
+│
 ├── main.py
-
 ├── requirements.txt
-
+├── requirements-dev.txt
 ├── .gitignore
-
 └── README.md
-
 ```
 
+*Note: The text and PDF report files are generated outputs. They may not exist until the report generators are run.*
 
+## Requirements
 
-\*Note: This is the intended core structure. Some local files may differ depending on your current project version.\*
+- Python 3.10 or later.
+- Windows or Linux.
+- Git.
+- Npcap on Windows when required for Scapy packet capture.
+- Administrator privileges may be required for live packet capture.
 
+## Installation and Setup
 
-
-\## Requirements
-
-
-
-\* Python 3.10 or later
-
-\* Windows, Linux, or another compatible Python environment
-
-\* Npcap on Windows when required for live packet capture with Scapy
-
-\* Required Python packages listed in `requirements.txt`
-
-
-
-\## Installation and Setup
-
-
-
-\### 1. Clone the repository
-
-
+### 1. Clone the repository
 
 ```bash
-
 git clone https://github.com/Mulinticharan2007/NID-TMS.git
-
-cd NID-TMS
-
 ```
 
+### 2. Open the project directory
 
+```bash
+cd NID-TMS
+```
 
-\### 2. Create a virtual environment
+### 3. Create a virtual environment
 
+```bash
+python -m venv .venv
+```
 
+### 4. Activate the virtual environment
 
 Windows PowerShell:
 
-
-
 ```powershell
-
-python -m venv .venv
-
-.\\.venv\\Scripts\\Activate.ps1
-
+.\.venv\Scripts\Activate.ps1
 ```
 
+### 5. Install project dependencies
 
-
-\### 3. Install dependencies
-
-
-
-```powershell
-
-python -m pip install -r requirements.txt
-
+```bash
+pip install -r requirements.txt
 ```
 
+### 6. Install development and testing dependencies
 
-
-\### 4. Run the application
-
-
-
-Start the application using the entry point appropriate for your current version:
-
-
-
-```powershell
-
-python main.py
-
+```bash
+pip install -r requirements-dev.txt
 ```
 
+## Running the Application
 
+Start the FastAPI application using:
 
-If your dashboard is started separately, use the documented FastAPI/Uvicorn entry point for your project. For example, if the FastAPI application object is named `app` in `dashboard/app.py`:
-
-
-
-```powershell
-
-python -m uvicorn dashboard.app:app --reload
-
+```bash
+python -m uvicorn main:app --reload
 ```
 
+Open the dashboard in your browser:
 
-
-Open the local URL printed by Uvicorn in your browser. The usual development address is `http://127.0.0.1:8000`, but use the address and port shown in your terminal.
-
-
-
-\## Testing
-
-
-
-Run the traffic-statistics unit tests:
-
-
-
-```powershell
-
-python -m unittest tests.test\_traffic\_stats -v
-
+```text
+http://127.0.0.1:8000
 ```
 
+The API documentation is available at:
 
-
-The tests cover TCP, UDP, and ICMP packet counting, total byte calculations, and processing multiple packets.
-
-
-
-Run the system checks using the test script:
-
-
-
-```powershell
-
-python tests/test\_system.py
-
+```text
+http://127.0.0.1:8000/docs
 ```
 
+## Generating Security Reports
 
+### Generate a text report
 
-\## Security and Responsible Use
+```bash
+python .\reports\report_generator.py
+```
 
+### Generate a PDF report
 
+```bash
+python .\reports\pdf_report_generator.py
+```
 
-\* Use live packet capture only on systems and networks you own or have explicit permission to monitor.
+Generated reports are saved in the `reports/` directory.
 
-\* Run with the required privileges for your operating system and capture configuration.
+## Running Automated Tests
 
-\* Treat detection results as indicators for investigation, not definitive proof of an attack.
+Run the complete test suite:
 
-\* Avoid publishing sensitive packet captures, credentials, personal data, or private network information.
+```bash
+python -m pytest -q
+```
 
+Run tests with detailed output:
 
+```bash
+python -m pytest -v
+```
 
-\## Current Project Status
+Run only PDF report tests:
 
+```bash
+python -m pytest .\tests\test_pdf_report_generator.py -v
+```
 
+**Latest verified test result:** 25 tests passed.
 
-The initial project setup, packet-analysis components, dashboard, alert-management components, report generator, and traffic-statistics tests have been developed.
+## Security and Responsible Use
 
+- Use this project only on networks and devices you own or have permission to monitor.
+- Packet capture may require administrator privileges.
+- Do not use this project to monitor networks without authorization.
+- Detection results are rule-based indicators and do not prove that an attack has occurred.
+- Investigate alerts before treating an IP address or activity as malicious.
+- Avoid sharing captured traffic containing sensitive information.
 
+## Current Project Status
 
-The traffic-statistics test suite has passed five tests in the current development environment. Features and system-wide behavior should continue to be tested as the project evolves.
+The following components have been implemented:
 
+- Network packet capture.
+- Traffic analysis and statistics.
+- Rule-based intrusion detection.
+- Security alert generation.
+- Risk scoring.
+- SQLite database storage.
+- FastAPI backend.
+- Web-based security dashboard.
+- Session and lifetime traffic monitoring.
+- Text security report generation.
+- PDF security report generation.
+- Automated test suite.
 
+The project has passed **25 automated tests** in the latest verified test run.
 
-\## Future Improvements
+## Future Improvements
 
+- Machine learning-based anomaly detection.
+- Advanced threat intelligence integration.
+- Improved detection accuracy.
+- User authentication and role-based access.
+- More detailed security analytics.
+- Advanced report customization.
+- Email notifications for high-severity alerts.
 
+## Author
 
-\* Add additional intrusion-detection rules.
+**Charan Mulinti**
 
-\* Improve alert severity scoring and filtering.
+GitHub: https://github.com/Mulinticharan2007
 
-\* Add historical traffic charts.
+## Disclaimer
 
-\* Improve report export and filtering.
-
-\* Expand automated tests and detection accuracy.
-
-\* Add clear setup instructions and dashboard screenshots.
-
-
-
-\## Author
-
-
-
-\*\*Charan Mulinti\*\*
-
-
-
-GitHub: \[@Mulinticharan2007](https://github.com/Mulinticharan2007)
-
-
-
-\## Disclaimer
-
-
-
-NID-TMS is an educational cybersecurity project intended for authorized network monitoring and defensive security learning. It is not a replacement for a production-grade intrusion detection system.
-
-
-
+This project is developed for educational and cybersecurity learning purposes. It is not a replacement for professional enterprise-grade intrusion detection systems or security monitoring solutions.
